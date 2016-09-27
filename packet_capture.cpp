@@ -33,35 +33,34 @@ int main(int argc, char *argv[])
 	}
 	char errbuf[PCAP_ERRBUF_SIZE];
 	
-	if(argv[1] == s[0])
+	if(argv[1] == s[0]) //live mode
 	{	
 		int pid = fork();
-		if(pid < 0)
-		{
+		if(pid < 0){
 			cout << "fork error" << endl;
 			exit(0);
 		}
 		
-		else if(pid == 0)
-		{
-			pcl::visualization::CloudViewer viewer("Lidar 1 from eth0"); // declare the viewer as a global variable
+		// Create a fork to allow the data from 2 LiDAR's to be visualized in parallel
+		else if(pid == 0){
+
+			pcl::visualization::CloudViewer viewer("Data from eth0");
 			descr = pcap_open_live("eth0", 1248, 1, 1, errbuf);
   			if (descr == NULL) {
-     				cout << "pcap_open_live() failed: " << errbuf << endl;
-     				return 1;
+ 				cout << "pcap_open_live() failed: " << errbuf << endl;
+ 				return 1;
   			}
 			viewer.runOnVisualizationThreadOnce (viewerOneOff);
-	    		viewer.runOnVisualizationThread (viewerPsycho);
-	    		//loop through the pcap file and extract the packets
-	    		pcap_loop(descr, 0, packetHandler, (u_char *) &viewer);
+    		viewer.runOnVisualizationThread (viewerPsycho);
+    		//loop through the pcap file and extract the packets
+    		pcap_loop(descr, 0, packetHandler, (u_char *) &viewer);
  
 			while(!viewer.wasStopped()){
-  			//do nothing
+  				//do nothing
   			}
-		}
-		else
-		{
-			pcl::visualization::CloudViewer viewer("Lidar 2 from eth1"); // declare the viewer as a global variable
+		} else {
+
+			pcl::visualization::CloudViewer viewer("Data from eth1");
 			std::thread t1(capture_video);
 			descr = pcap_open_live("eth1", 1248, 1, 1, errbuf);
 			if (descr == NULL) {
@@ -69,17 +68,17 @@ int main(int argc, char *argv[])
 				return 1;
 			}
 			viewer.runOnVisualizationThreadOnce (viewerOneOff);
-		    	viewer.runOnVisualizationThread (viewerPsycho);
-		    	pcap_loop(descr, 0, packetHandler, (u_char *) &viewer);
+		    viewer.runOnVisualizationThread (viewerPsycho);
+		    pcap_loop(descr, 0, packetHandler, (u_char *) &viewer);
 			int w = wait(NULL);
 			t1.join();
 			while(!viewer.wasStopped()){
-			//do nothing
+				//do nothing
 			}
   		}
 	}
 
-	if(argv[1] == s[1])
+	if(argv[1] == s[1]) // record mode
 	{
 		std::thread t1(capture_video);
 		std::thread t2(save_pcap, "eth0", "Sample_1.pcap");
@@ -90,54 +89,49 @@ int main(int argc, char *argv[])
 		t1.join();
 	}
 	
-	if(argv[1] == s[2])
+	if(argv[1] == s[2]) // offline mode
 	{
 		int pid = fork();
-		if(pid < 0)
-		{
+		if(pid < 0){
 			cout << "fork error" << endl;
 			exit(0);
 		}
 		
-		else if(pid == 0)
-		{
-			pcl::visualization::CloudViewer viewer("Sample_1"); // declare the viewer as a global variable
+		else if(pid == 0){ // first fork to visualize Sample_1.pcap
+			pcl::visualization::CloudViewer viewer("Sample_1");
 			descr = pcap_open_offline("Sample_1.pcap", errbuf);
   			if (descr == NULL) {
-     				cout << "pcap_open_live() failed: " << errbuf << endl;
-     				return 1;
+ 				cout << "pcap_open_offline() failed: " << errbuf << endl;
+ 				return 1;
   			}
 			viewer.runOnVisualizationThreadOnce (viewerOneOff);
-	    		viewer.runOnVisualizationThread (viewerPsycho);
-	    		//loop through the pcap file and extract the packets
-	    		pcap_loop(descr, 0, packetHandler, (u_char *) &viewer);
- 
+    		viewer.runOnVisualizationThread (viewerPsycho);
+    		//loop through the pcap file and extract the packets
+    		pcap_loop(descr, 0, packetHandler, (u_char *) &viewer);
+
 			while(!viewer.wasStopped()){
-  			//do nothing
+  				//do nothing
   			}
-		}
-		else
-		{
-			pcl::visualization::CloudViewer viewer("Sample_2"); // declare the viewer as a global variable
+		} else { // second fork to visualize Sample_2.pcap
+			pcl::visualization::CloudViewer viewer("Sample_2");
 			std::thread t1(playback_video);
 			descr = pcap_open_offline("Sample_2.pcap", errbuf);
 			if (descr == NULL) {
-				cout << "pcap_open_live() failed: " << errbuf << endl;
+				cout << "pcap_open_offline() failed: " << errbuf << endl;
 				return 1;
 			}
 			viewer.runOnVisualizationThreadOnce (viewerOneOff);
-		    	viewer.runOnVisualizationThread (viewerPsycho);
-		    	pcap_loop(descr, 0, packetHandler, (u_char *) &viewer);
+	    	viewer.runOnVisualizationThread (viewerPsycho);
+	    	pcap_loop(descr, 0, packetHandler, (u_char *) &viewer);
 			int w = wait(NULL);
 			t1.join();
 			while(!viewer.wasStopped()){
-			//do nothing
+				//do nothing
 			}
   		}
 
 	}	
 	cout << "------------" << endl;
-  	
-
+  
   	return 0;
 }

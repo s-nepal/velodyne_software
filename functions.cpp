@@ -69,8 +69,8 @@ void delay()
 struct data_packet data_structure_builder(const struct pcap_pkthdr *pkthdr, const u_char *data)
 {
     	//printf("Packet size: %d bytes\n", pkthdr->len);		
-    	if (pkthdr->len != pkthdr->caplen)
-        	printf("Warning! Capture size different than packet size: %ld bytes\n", (long)pkthdr->len);
+	if (pkthdr->len != pkthdr->caplen)
+    	printf("Warning! Capture size different than packet size: %ld bytes\n", (long)pkthdr->len);
 
 	// define the main struct
 	struct data_packet first;
@@ -160,27 +160,27 @@ void capture_video()
 {	
 	using namespace cv;
 	VideoCapture cap(0); 			// open the default camera
-    	if(!cap.isOpened())		// check if we succeeded
-        	exit(0);
+	if(!cap.isOpened())		// check if we succeeded
+    	exit(0);
     	
 	Mat edges;
-    	namedWindow("edges",1);
+	namedWindow("edges",1);
 
-    	int frame_width = cap.get(CV_CAP_PROP_FRAME_WIDTH);
+	int frame_width = cap.get(CV_CAP_PROP_FRAME_WIDTH);
    	int frame_height = cap.get(CV_CAP_PROP_FRAME_HEIGHT);
 
-    	VideoWriter video("out.avi",CV_FOURCC('M','J','P','G'),10, Size(frame_width,frame_height),true);
+	VideoWriter video("out.avi",CV_FOURCC('M','J','P','G'),10, Size(frame_width,frame_height),true);
 
-    	for(;;)
-    	{
-        	Mat frame;
-        	cap >> frame; 		// get a new frame from camera
-        	cvtColor(frame, edges, COLOR_BGR2GRAY);
-        	video.write(frame);
-        	//GaussianBlur(edges, edges, Size(7,7), 1.5, 1.5);
-        	//Canny(edges, edges, 0, 30, 3);
-        	imshow("edges", edges);
-        	if(waitKey(30) >= 0) break;
+	for(;;)
+	{
+    	Mat frame;
+    	cap >> frame; 		// get a new frame from camera
+    	cvtColor(frame, edges, COLOR_BGR2GRAY);
+    	video.write(frame);
+    	//GaussianBlur(edges, edges, Size(7,7), 1.5, 1.5);
+    	//Canny(edges, edges, 0, 30, 3);
+    	imshow("edges", edges);
+    	if(waitKey(30) >= 0) break;
    	}
 }
 
@@ -188,26 +188,28 @@ void playback_video()
 {
 	using namespace cv;
 	VideoCapture cap("out.avi"); 			// open the default camera
-    	if(!cap.isOpened())		// check if we succeeded
-        	exit(0);
+	if(!cap.isOpened())		// check if we succeeded
+    	exit(0);
     	
 	Mat edges;
-    	namedWindow("edges",1);
+	namedWindow("edges",1);
 
-    	int frame_width = cap.get(CV_CAP_PROP_FRAME_WIDTH);
-   	int frame_height = cap.get(CV_CAP_PROP_FRAME_HEIGHT);
+	//int frame_width = cap.get(CV_CAP_PROP_FRAME_WIDTH);
+   	//int frame_height = cap.get(CV_CAP_PROP_FRAME_HEIGHT);
 
-    	for(;;)
-    	{
-        	Mat frame;
-        	cap >> frame; 		// get a new frame from camera
-        	cvtColor(frame, edges, COLOR_BGR2GRAY);
-        	//video.write(frame);
-        	//GaussianBlur(edges, edges, Size(7,7), 1.5, 1.5);
-        	//Canny(edges, edges, 0, 30, 3);
-        	imshow("edges", edges);
-        	if(waitKey(30) >= 0) break;
+	for(;;)
+	{
+    	Mat frame;
+    	cap >> frame; 		// get a new frame from camera
+    	cvtColor(frame, edges, COLOR_BGR2GRAY);
+    	//video.write(frame);
+    	//GaussianBlur(edges, edges, Size(7,7), 1.5, 1.5);
+    	//Canny(edges, edges, 0, 30, 3);
+    	imshow("edges", edges);
+    	if(waitKey(30) >= 0) break;
    	}
+
+   	destroyWindow("edges");
 
 }
 
@@ -219,33 +221,33 @@ void playback_video()
    -------------------------------------------------------------*/
 void save_pcap( const char *port, const char *file_name)
 {
-		char errbuf[PCAP_ERRBUF_SIZE];
-		pcap_dumper_t *pd;
-		pcap_t *descr1;
-		descr1 = pcap_open_live(port, 1248, 1, 1, errbuf);
+	char errbuf[PCAP_ERRBUF_SIZE];
+	pcap_dumper_t *pd;
+	pcap_t *descr1;
+	descr1 = pcap_open_live(port, 1248, 1, 1, errbuf);
 
-  		if (descr1 == NULL) {
-     			cout << "pcap_open_live() failed: " << errbuf << endl;
-     			exit(0);
-  		}
-		
-		cout << "Saving the data into " << file_name << endl;
-		
-		if((pd = pcap_dump_open(descr1, file_name)) == NULL){
-			cout << "error in opening file Sample_2.pcap" << endl;
-			exit(0);
-		}
-		
-		int pcount;
-		delay();
-		if((pcount = pcap_loop(descr1, 0, &pcap_dump, (u_char *) pd)) < 0){
-			cout << "Error in reeading packets " << endl;
-			exit(0);
-		}
-		
-		cout << pcount <<" packets capture completed" << endl;
-		pcap_dump_close(pd);
-		pcap_close(descr1);
+	if (descr1 == NULL) {
+		cout << "pcap_open_live() failed: " << errbuf << endl;
+		exit(0);
+	}
+	
+	cout << "Saving the data into " << file_name << endl;
+	
+	if((pd = pcap_dump_open(descr1, file_name)) == NULL){
+		cout << "error in opening file Sample_2.pcap" << endl;
+		exit(0);
+	}
+	
+	int pcount;
+	delay();
+	if((pcount = pcap_loop(descr1, 0, &pcap_dump, (u_char *) pd)) < 0){
+		cout << "Error in reeading packets " << endl;
+		exit(0);
+	}
+	
+	cout << pcount <<" packets capture completed" << endl;
+	pcap_dump_close(pd);
+	pcap_close(descr1);
 
 }
 
@@ -253,18 +255,13 @@ void save_pcap( const char *port, const char *file_name)
 
 void viewerOneOff (pcl::visualization::PCLVisualizer& viewer)
 {	
-    	viewer.setBackgroundColor (255,255,255); // black background
+	viewer.setBackgroundColor (255,255,255); // black background
 	//viewer.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE,2); // size of point clouds
 	viewer.setRepresentationToSurfaceForAllActors();
 	viewer.addCoordinateSystem (8);
 	viewer.initCameraParameters ();
 	//viewer.setCameraPosition (0, 0, 100, 0, 0, 0);
 	//viewer.resetCamera();
-	
-    	pcl::PointXYZ o;
-    	o.x = 0;
-   	o.y = 0;
-    	o.z = 0;
 }
 
 
@@ -272,9 +269,9 @@ void viewerPsycho (pcl::visualization::PCLVisualizer& viewer)
 {
 	static unsigned count = 0;
    	std::stringstream ss;
-    	ss << "Once per viewer loop: " << count++;
-    	viewer.removeShape ("text", 0);
-    	user_data++;	
+	ss << "Once per viewer loop: " << count++;
+	viewer.removeShape ("text", 0);
+	user_data++;	
 }
 
 
