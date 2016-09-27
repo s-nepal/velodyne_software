@@ -56,7 +56,7 @@ const int cycle_num = 581;
 int user_data;
 void delay()
 {
-	for(int i = 0; i < 800; i++){
+	for(int i = 0; i < 2400; i++){
 		for (int j = 0; j < 100; j++){}
 	}
 }
@@ -187,25 +187,19 @@ void capture_video()
 void playback_video()
 {
 	using namespace cv;
-	VideoCapture cap("out.avi"); 			// open the default camera
+	VideoCapture cap;
+	cap.open("out.avi");
+	
 	if(!cap.isOpened())		// check if we succeeded
     	exit(0);
     	
-	Mat edges;
-	namedWindow("edges",1);
+	Mat frame;
+	namedWindow("video", 1);
 
-	//int frame_width = cap.get(CV_CAP_PROP_FRAME_WIDTH);
-   	//int frame_height = cap.get(CV_CAP_PROP_FRAME_HEIGHT);
-
-	for(;;)
-	{
-    	Mat frame;
+	for(;;){	
     	cap >> frame; 		// get a new frame from camera
-    	cvtColor(frame, edges, COLOR_BGR2GRAY);
-    	//video.write(frame);
-    	//GaussianBlur(edges, edges, Size(7,7), 1.5, 1.5);
-    	//Canny(edges, edges, 0, 30, 3);
-    	imshow("edges", edges);
+    	if(!frame.data) break;
+    	imshow("video", frame);
     	if(waitKey(30) >= 0) break;
    	}
 
