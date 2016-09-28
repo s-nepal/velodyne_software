@@ -57,92 +57,31 @@ int global_ctr = 0;		//to print out the packet number
 const int cycle_num = 581;	
 int user_data;
 
-/* -------------------------------------------------------------
-   -------------data_structure_builder--------------------------
-   -------------------------------------------------------------*/
 
-void data_structure_builder(const struct pcap_pkthdr *pkthdr, const u_char *data, struct data_packet& first)
-{
-    	//printf("Packet size: %d bytes\n", pkthdr->len);		
-	if (pkthdr->len != pkthdr->caplen)
-    	printf("Warning! Capture size different than packet size: %ld bytes\n", (long)pkthdr->len);
-
-	// return an empty struct if the packet length is not 1248 bytes
-	if(pkthdr -> len != 1248){
-		first = (const struct data_packet){0};
-		return;
-	}
-			
-	for(int i = 0; i < 42; i++){
-		first.header[i] = data[i]; // fill in the header
-	}
-
-	//cout << endl;
-	for(int i = 0; i < 6; i++){
-		first.footer[i] = data[i + 1242]; // fill in the footer
-	}
-
-	// populate the payload (block ID, azimuth, 32 distances, 32 intensities  for each of the 12 data blocks)
-	int curr_byte_index = 42; // not 43 bcz. in C++, indexing starts at 0, not 1
-	uint8_t curr_firing_data[100];
-	fire_data temp[12];
-
-	for(int i = 0; i < 12; i++){
-		for(int j = 0; j < 100; j++){
-			curr_firing_data[j] = data[j + curr_byte_index];
-		}
-		temp[i].block_id = (curr_firing_data[1] << 8) | (curr_firing_data[0]);
-		temp[i].azimuth = (double)((curr_firing_data[3] << 8) | (curr_firing_data[2])) / 100;
-
-		int ctr = 0;
-		for(int j = 0; j < 32; j++){
-			temp[i].dist[j] = (double)((curr_firing_data[4 + ctr + 1] << 8) | curr_firing_data[4 + ctr]) / 500;
-			temp[i].intensity[j] = curr_firing_data[4 + ctr + 2];
-			ctr = ctr + 3;
-		}
-		first.payload[i] = temp[i];
-		curr_byte_index = curr_byte_index + 100;
-	}
-
-	return;
+/* -------------------------------------------------------------*/
+//Ancillary function for PCL
+void viewerOneOff (pcl::visualization::PCLVisualizer& viewer)
+{	
+	viewer.setBackgroundColor (255,255,255); // black background
+	//viewer.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE,2); // size of point clouds
+	viewer.setRepresentationToSurfaceForAllActors();
+	viewer.addCoordinateSystem (8);
+	viewer.initCameraParameters ();
+	//viewer.setCameraPosition (0, 0, 100, 0, 0, 0);
+	//viewer.resetCamera();
 }
 
-
-/* -------------------------------------------------------------
-   --------------------extract_xyz------------------------------
-   Input: processed_packet of data_packet struct
-   Output: Pointer to a cloud
-   Extracs x,y,z co-ordinates from processed packet and places in cloud pointer
-   -------------------------------------------------------------*/
-
-pcl::PointCloud<pcl::PointXYZRGBA>::Ptr extract_xyz(struct data_packet& processed_packet)
+//Ancillary function for PCL
+void viewerPsycho (pcl::visualization::PCLVisualizer& viewer)
 {
-	static pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud (new pcl::PointCloud<pcl::PointXYZRGBA>);	
-	pcl::PointXYZRGBA sample;
-
-	for(int i = 0; i < 12; i++){
-		double curr_azimuth = (processed_packet.payload[i].azimuth) * PI / 180; //convert degrees to radians
-		for(int j = 0; j < 32; j++){
-			double curr_dist = processed_packet.payload[i].dist[j];
-			double curr_elev_angle = (elev_angles[j]) * PI / 180;
-			sample.x = curr_dist * sin(curr_azimuth);
-			sample.y = curr_dist * cos(curr_azimuth);
-			sample.z = curr_dist * sin(curr_elev_angle);
-			sample.r = 255; sample.g = 0; sample.b = 0;
-			cloud -> points.push_back(sample);
-		}
-	}
-
-	if(global_ctr > cycle_num){
-		cloud -> points.clear();
-		global_ctr = 0;
-		//usleep(400000); //0.1s delay
-	}
-	global_ctr++;
-
-	return cloud;
+	static unsigned count = 0;
+   	std::stringstream ss;
+	ss << "Once per viewer loop: " << count++;
+	viewer.removeShape ("text", 0);
+	user_data++;	
 }
 
+/* ------------------------------------------------------------*/
 
 /* -------------------------------------------------------------
    -------------Capture video-----------------------------------
@@ -202,6 +141,94 @@ void playback_video(int flag) //used by both the live mode and the offline mode
 
 }
 
+/* ------------------------------------------------------------*/
+
+/* -------------------------------------------------------------
+   -------------data_structure_builder--------------------------
+   -------------------------------------------------------------*/
+
+void data_structure_builder(const struct pcap_pkthdr *pkthdr, const u_char *data, struct data_packet& processed_packet)
+{
+    //printf("Packet size: %d bytes\n", pkthdr->len);		
+	if (pkthdr->len != pkthdr->caplen)
+    	printf("Warning! Capture size different than packet size: %ld bytes\n", (long)pkthdr->len);
+
+	// return an empty struct if the packet length is not 1248 bytes
+	if(pkthdr -> len != 1248){
+		processed_packet = (const struct data_packet){0};
+		return;
+	}
+			
+	for(int i = 0; i < 42; i++){
+		processed_packet.header[i] = data[i]; // fill in the header
+	}
+
+	//cout << endl;
+	for(int i = 0; i < 6; i++){
+		processed_packet.footer[i] = data[i + 1242]; // fill in the footer
+	}
+
+	// populate the payload (block ID, azimuth, 32 distances, 32 intensities  for each of the 12 data blocks)
+	int curr_byte_index = 42; // not 43 bcz. in C++, indexing starts at 0, not 1
+	uint8_t curr_firing_data[100];
+	fire_data temp[12];
+
+	for(int i = 0; i < 12; i++){
+		for(int j = 0; j < 100; j++){
+			curr_firing_data[j] = data[j + curr_byte_index];
+		}
+		temp[i].block_id = (curr_firing_data[1] << 8) | (curr_firing_data[0]);
+		temp[i].azimuth = (double)((curr_firing_data[3] << 8) | (curr_firing_data[2])) / 100;
+
+		int ctr = 0;
+		for(int j = 0; j < 32; j++){
+			temp[i].dist[j] = (double)((curr_firing_data[4 + ctr + 1] << 8) | curr_firing_data[4 + ctr]) / 500;
+			temp[i].intensity[j] = curr_firing_data[4 + ctr + 2];
+			ctr = ctr + 3;
+		}
+		processed_packet.payload[i] = temp[i];
+		curr_byte_index = curr_byte_index + 100;
+	}
+
+	return;
+}
+
+
+/* -------------------------------------------------------------
+   --------------------extract_xyz------------------------------
+   Input: processed_packet of data_packet struct
+   Output: Pointer to a cloud
+   Extracs x,y,z co-ordinates from processed packet and places in cloud pointer
+   -------------------------------------------------------------*/
+
+pcl::PointCloud<pcl::PointXYZRGBA>::Ptr extract_xyz(struct data_packet& processed_packet)
+{
+	static pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud (new pcl::PointCloud<pcl::PointXYZRGBA>);	
+	pcl::PointXYZRGBA sample;
+
+	for(int i = 0; i < 12; i++){
+		double curr_azimuth = (processed_packet.payload[i].azimuth) * PI / 180; //convert degrees to radians
+		for(int j = 0; j < 32; j++){
+			double curr_dist = processed_packet.payload[i].dist[j];
+			double curr_elev_angle = (elev_angles[j]) * PI / 180;
+			sample.x = curr_dist * sin(curr_azimuth);
+			sample.y = curr_dist * cos(curr_azimuth);
+			sample.z = curr_dist * sin(curr_elev_angle);
+			sample.r = 255; sample.g = 0; sample.b = 0;
+			cloud -> points.push_back(sample);
+		}
+	}
+
+	if(global_ctr > cycle_num){
+		cloud -> points.clear();
+		global_ctr = 0;
+		//usleep(400000); //0.1s delay
+	}
+	global_ctr++;
+
+	return cloud;
+}
+
 
 /* -------------------------------------------------------------
    -------Saving the data into pcap file------------------------
@@ -239,29 +266,6 @@ void save_pcap( const char *port, const char *file_name)
 	pcap_close(descr1);
 
 }
-
-
-void viewerOneOff (pcl::visualization::PCLVisualizer& viewer)
-{	
-	viewer.setBackgroundColor (255,255,255); // black background
-	//viewer.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE,2); // size of point clouds
-	viewer.setRepresentationToSurfaceForAllActors();
-	viewer.addCoordinateSystem (8);
-	viewer.initCameraParameters ();
-	//viewer.setCameraPosition (0, 0, 100, 0, 0, 0);
-	//viewer.resetCamera();
-}
-
-
-void viewerPsycho (pcl::visualization::PCLVisualizer& viewer)
-{
-	static unsigned count = 0;
-   	std::stringstream ss;
-	ss << "Once per viewer loop: " << count++;
-	viewer.removeShape ("text", 0);
-	user_data++;	
-}
-
 
 void packetHandler(u_char *userData, const struct pcap_pkthdr* pkthdr, const u_char* packet) 
 {
