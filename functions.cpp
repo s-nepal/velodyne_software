@@ -20,7 +20,9 @@
 #include <netinet/in.h>
 #include <netinet/tcp.h>
 #include <arpa/inet.h>
+
 #include <string>
+#include <unistd.h>
 
 #define PI 3.14159265
 // list elevation angles corresponding to each of the 32 laser beams for the HDL-32
@@ -54,16 +56,6 @@ struct data_packet {
 int global_ctr = 0;		//to print out the packet number
 const int cycle_num = 581;	
 int user_data;
-
-void delay()
-{
-	for(int i = 0; i < 20000000; i++){
-		for (int j = 0; j < 10000000; j++){
-			//cout << "Delay Entered" << endl;
-		}
-	}
-}
-
 
 /* -------------------------------------------------------------
    -------------data_structure_builder--------------------------
@@ -146,6 +138,7 @@ pcl::PointCloud<pcl::PointXYZRGBA>::Ptr extract_xyz(struct data_packet processed
 	if(global_ctr > cycle_num){
 		cloud -> points.clear();
 		global_ctr = 0;
+		//usleep(400000); //0.1s delay
 	}
 	global_ctr++;
 
@@ -239,7 +232,7 @@ void save_pcap( const char *port, const char *file_name)
 	}
 	
 	int pcount;
-	delay();
+	//usleep(100000);
 	if((pcount = pcap_loop(descr1, 0, &pcap_dump, (u_char *) pd)) < 0){
 		cout << "Error in reeading packets " << endl;
 		exit(0);
@@ -250,7 +243,6 @@ void save_pcap( const char *port, const char *file_name)
 	pcap_close(descr1);
 
 }
-
 
 
 void viewerOneOff (pcl::visualization::PCLVisualizer& viewer)
@@ -286,10 +278,10 @@ void packetHandler(u_char *userData, const struct pcap_pkthdr* pkthdr, const u_c
 	cloud = extract_xyz(processed_packet);
 	//pcl::io::savePCDFileASCII("test_pcd.pcd", cloud);
 	//cout << cloud.x << endl;
-	if(global_ctr == cycle_num) //buffer
+	if(global_ctr == cycle_num){ //buffer
 		viewer->showCloud(cloud);
-	
-	delay();
+		usleep(100000); //0.1s delayS
+	}	
 	
 	//end the program if the viewer was closed by the user
 	if(viewer->wasStopped()){
