@@ -37,7 +37,7 @@ const double elev_angles[32] = {-15, 1, -13, 3, -11, 5, -9, 7, -7, 9, -5,
 
 
 /* -------------------------------------------------------------
-   -----Structs needed to decode Velodyne LiDAR UDP packets-----
+   -------------Structs needed to decode ethernet packets-------
    -------------------------------------------------------------*/
 
 struct fire_data {
@@ -53,27 +53,24 @@ struct data_packet {
 	uint8_t footer[6];
 };
 
-int global_ctr = 0;		//to keep track of the no. of UDP packets in buffer
-const int cycle_num = 581;	//no. of UDP packets needed for one 360 deg sweep in azimuth
+int global_ctr = 0;		//to print out the packet number
+const int cycle_num = 581;	
 int user_data;
 
 /* -------------------------------------------------------------
    -------------data_structure_builder--------------------------
    -------------------------------------------------------------*/
 
-// This function captures a UDP packet and packages it into its constituent components using the structs defined above
-struct data_packet data_structure_builder(const struct pcap_pkthdr *pkthdr, const u_char *data)
+void data_structure_builder(const struct pcap_pkthdr *pkthdr, const u_char *data, struct data_packet& first)
 {
-    //printf("Packet size: %d bytes\n", pkthdr->len);		
+    	//printf("Packet size: %d bytes\n", pkthdr->len);		
 	if (pkthdr->len != pkthdr->caplen)
     	printf("Warning! Capture size different than packet size: %ld bytes\n", (long)pkthdr->len);
 
-	// define the main struct
-	struct data_packet first;
-
 	// return an empty struct if the packet length is not 1248 bytes
 	if(pkthdr -> len != 1248){
-		return (const struct data_packet){0};
+		first = (const struct data_packet){0};
+		return;
 	}
 			
 	for(int i = 0; i < 42; i++){
@@ -107,7 +104,7 @@ struct data_packet data_structure_builder(const struct pcap_pkthdr *pkthdr, cons
 		curr_byte_index = curr_byte_index + 100;
 	}
 
-	return first;
+	return;
 }
 
 
@@ -117,8 +114,8 @@ struct data_packet data_structure_builder(const struct pcap_pkthdr *pkthdr, cons
    Output: Pointer to a cloud
    Extracs x,y,z co-ordinates from processed packet and places in cloud pointer
    -------------------------------------------------------------*/
-// This function converts the data in a capture UDP packet into xyz (Cartesian) co-oridnates 
-pcl::PointCloud<pcl::PointXYZRGBA>::Ptr extract_xyz(struct data_packet processed_packet)
+
+pcl::PointCloud<pcl::PointXYZRGBA>::Ptr extract_xyz(struct data_packet& processed_packet)
 {
 	static pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud (new pcl::PointCloud<pcl::PointXYZRGBA>);	
 	pcl::PointXYZRGBA sample;
@@ -131,12 +128,12 @@ pcl::PointCloud<pcl::PointXYZRGBA>::Ptr extract_xyz(struct data_packet processed
 			sample.x = curr_dist * sin(curr_azimuth);
 			sample.y = curr_dist * cos(curr_azimuth);
 			sample.z = curr_dist * sin(curr_elev_angle);
-			sample.r = 0; sample.g = 0; sample.b = 255; //for now, the point cloud is uniformly blue
+			sample.r = 255; sample.g = 0; sample.b = 0;
 			cloud -> points.push_back(sample);
 		}
 	}
 
-	if(global_ctr > cycle_num){ //once 581 UDP packets have been captured, empty the cloud for the next batch of 581 packets
+	if(global_ctr > cycle_num){
 		cloud -> points.clear();
 		global_ctr = 0;
 		//usleep(400000); //0.1s delay
@@ -149,11 +146,8 @@ pcl::PointCloud<pcl::PointXYZRGBA>::Ptr extract_xyz(struct data_packet processed
 
 /* -------------------------------------------------------------
    -------------Capture video-----------------------------------
-   camera will be deinitialised automatically in VideoCapture 
-   destructor
    -------------------------------------------------------------*/
 
-// This function records video using the USB camera
 void capture_video() //used only by record mode
 {	
 	using namespace cv;
@@ -161,6 +155,9 @@ void capture_video() //used only by record mode
 	if(!cap.isOpened())		// check if we succeeded
     	exit(0);
     	
+	Mat edges;
+	//namedWindow("video",1);
+
 	int frame_width = cap.get(CV_CAP_PROP_FRAME_WIDTH);
    	int frame_height = cap.get(CV_CAP_PROP_FRAME_HEIGHT);
 
@@ -172,12 +169,13 @@ void capture_video() //used only by record mode
     	cap >> frame; 		// get a new frame from camera
   
     	video.write(frame);
+ 
+    	//imshow("video", frame);
     	
     	if(waitKey(30) >= 0) break;
    	}
 }
 
-// This function either plays a live video feed or plays a recorded video file (.avi format)
 void playback_video(int flag) //used by both the live mode and the offline mode
 {
 	using namespace cv;
@@ -188,7 +186,7 @@ void playback_video(int flag) //used by both the live mode and the offline mode
 		cap.open(0);
 	
 	if(!cap.isOpened())		// check if we succeeded
-    	exit(0);
+    		return;
     	
 	Mat frame;
 	namedWindow("video", 1);
@@ -201,6 +199,7 @@ void playback_video(int flag) //used by both the live mode and the offline mode
    	}
 
    	destroyWindow("video");
+
 }
 
 
@@ -209,7 +208,6 @@ void playback_video(int flag) //used by both the live mode and the offline mode
    open capture file for offline processing can be done by
    descr = pcap_open_offline("Sample_1.pcap", errbuf);
    -------------------------------------------------------------*/
-// This function saves live UDP packets into a .pcap file
 void save_pcap( const char *port, const char *file_name)
 {
 	char errbuf[PCAP_ERRBUF_SIZE];
@@ -242,7 +240,7 @@ void save_pcap( const char *port, const char *file_name)
 
 }
 
-// Ancillary function needed by PCL
+
 void viewerOneOff (pcl::visualization::PCLVisualizer& viewer)
 {	
 	viewer.setBackgroundColor (255,255,255); // black background
@@ -254,7 +252,7 @@ void viewerOneOff (pcl::visualization::PCLVisualizer& viewer)
 	//viewer.resetCamera();
 }
 
-// Ancillary function needed by PCL
+
 void viewerPsycho (pcl::visualization::PCLVisualizer& viewer)
 {
 	static unsigned count = 0;
@@ -269,16 +267,17 @@ void packetHandler(u_char *userData, const struct pcap_pkthdr* pkthdr, const u_c
 {
 	//assign the packaged ethernet data to the struct
 	pcl::visualization::CloudViewer *viewer = (pcl::visualization::CloudViewer *) userData;
-	struct data_packet processed_packet = data_structure_builder(pkthdr, packet);
+	struct data_packet processed_packet;
+	data_structure_builder(pkthdr, packet, processed_packet);
 
 	//insert function here to extract xyz from processed_packet and return the cloud to be visualized below
-	pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud (new pcl::PointCloud<pcl::PointXYZRGBA>);
+	pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud;
 	cloud = extract_xyz(processed_packet);
 	//pcl::io::savePCDFileASCII("test_pcd.pcd", cloud);
 	//cout << cloud.x << endl;
 	if(global_ctr == cycle_num){ //buffer
 		viewer->showCloud(cloud);
-		usleep(300000); //delay between successive frames of LiDAR data
+		usleep(300000); //0.1s delayS
 	}	
 	
 	//end the program if the viewer was closed by the user
