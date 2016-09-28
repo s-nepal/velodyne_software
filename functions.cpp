@@ -20,7 +20,7 @@
 #include <netinet/in.h>
 #include <netinet/tcp.h>
 #include <arpa/inet.h>
-
+#include <string>
 
 #define PI 3.14159265
 // list elevation angles corresponding to each of the 32 laser beams for the HDL-32
@@ -54,10 +54,13 @@ struct data_packet {
 int global_ctr = 0;		//to print out the packet number
 const int cycle_num = 581;	
 int user_data;
+
 void delay()
 {
-	for(int i = 0; i < 2400; i++){
-		for (int j = 0; j < 100; j++){}
+	for(int i = 0; i < 20000000; i++){
+		for (int j = 0; j < 10000000; j++){
+			//cout << "Delay Entered" << endl;
+		}
 	}
 }
 
@@ -156,39 +159,42 @@ pcl::PointCloud<pcl::PointXYZRGBA>::Ptr extract_xyz(struct data_packet processed
    destructor
    -------------------------------------------------------------*/
 
-void capture_video()
+void capture_video() //used only by record mode
 {	
 	using namespace cv;
-	VideoCapture cap(0); 			// open the default camera
+	VideoCapture cap(0); 	// open the default camera
 	if(!cap.isOpened())		// check if we succeeded
     	exit(0);
     	
 	Mat edges;
-	namedWindow("edges",1);
+	//namedWindow("video",1);
 
 	int frame_width = cap.get(CV_CAP_PROP_FRAME_WIDTH);
    	int frame_height = cap.get(CV_CAP_PROP_FRAME_HEIGHT);
 
 	VideoWriter video("out.avi",CV_FOURCC('M','J','P','G'),10, Size(frame_width,frame_height),true);
 
-	for(;;)
-	{
+	for(;;){
+
     	Mat frame;
     	cap >> frame; 		// get a new frame from camera
-    	cvtColor(frame, edges, COLOR_BGR2GRAY);
+  
     	video.write(frame);
-    	//GaussianBlur(edges, edges, Size(7,7), 1.5, 1.5);
-    	//Canny(edges, edges, 0, 30, 3);
-    	imshow("edges", edges);
+ 
+    	//imshow("video", frame);
+    	
     	if(waitKey(30) >= 0) break;
    	}
 }
 
-void playback_video()
+void playback_video(int flag) //used by both the live mode and the offline mode
 {
 	using namespace cv;
 	VideoCapture cap;
-	cap.open("out.avi");
+	if(flag == 0) // offline mode
+		cap.open("out.avi");
+	else // live mode
+		cap.open(0);
 	
 	if(!cap.isOpened())		// check if we succeeded
     	exit(0);
@@ -203,7 +209,7 @@ void playback_video()
     	if(waitKey(30) >= 0) break;
    	}
 
-   	destroyWindow("edges");
+   	destroyWindow("video");
 
 }
 

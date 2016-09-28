@@ -61,7 +61,7 @@ int main(int argc, char *argv[])
 		} else {
 
 			pcl::visualization::CloudViewer viewer("Data from eth1");
-			std::thread t1(capture_video);
+			std::thread t1(playback_video, 1);
 			descr = pcap_open_live("eth1", 1248, 1, 1, errbuf);
 			if (descr == NULL) {
 				cout << "pcap_open_live() failed: " << errbuf << endl;
@@ -112,9 +112,10 @@ int main(int argc, char *argv[])
 			while(!viewer.wasStopped()){
   				//do nothing
   			}
+  			
 		} else { // second fork to visualize Sample_2.pcap
 			pcl::visualization::CloudViewer viewer("Sample_2");
-			std::thread t1(playback_video);
+			std::thread t1(playback_video, 0);
 			descr = pcap_open_offline("Sample_2.pcap", errbuf);
 			if (descr == NULL) {
 				cout << "pcap_open_offline() failed: " << errbuf << endl;
