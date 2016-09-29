@@ -63,7 +63,7 @@ int main(int argc, char *argv[])
 		else {
 
 			pcl::visualization::CloudViewer viewer("Data from eth1");
-			std::thread t1(playback_video, 1);
+			std::thread t1(video::playback_video, 1);
 			descr = pcap_open_live("eth1", 1248, 1, 1, errbuf);
 			if (descr == NULL) {
 				cout << "pcap_open_live() failed: " << errbuf << endl;
@@ -82,7 +82,7 @@ int main(int argc, char *argv[])
 
 	if(argv[1] == s[1]) // record mode
 	{
-		std::thread t1(capture_video);
+		std::thread t1(video::capture_video);
 		std::thread t2(save_pcap, "eth0", "Sample_1.pcap");
 		std::thread t3(save_pcap, "eth1", "Sample_2.pcap");
 		
@@ -114,6 +114,18 @@ int main(int argc, char *argv[])
   		}
   		vector<struct data_packet> giant_vector_II;	
   		pcap_loop(descr_II, 0, offline::pcap_copier, (u_char *) &giant_vector_II);
+
+  		int pid = fork();
+		if(pid < 0){
+			cout << "fork error" << endl;
+			exit(0);
+		}
+
+		else if(pid == 0){
+
+		}
+
+		offline::pcap_viewer((u_char *) &giant_vector_I);
 
   		// cout << "giant_vector_I size: " << giant_vector_I.size() << endl;
   		// cout << "giant_vector_II size: " << giant_vector_II.size() << endl;

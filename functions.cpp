@@ -45,7 +45,8 @@ const double elev_angles[32] = {-15, 1, -13, 3, -11, 5, -9, 7, -7, 9, -5,
 using namespace std;
 
 int global_ctr = 0;		//to print out the packet number
-const int cycle_num = 581;	
+const int cycle_num = 100;
+const int delay_us = 85000;	
 int user_data;
 
 
@@ -77,59 +78,61 @@ void viewerPsycho (pcl::visualization::PCLVisualizer& viewer)
 /* -------------------------------------------------------------
    -------------Capture video-----------------------------------
    -------------------------------------------------------------*/
-
-void capture_video() //used only by record mode
-{	
-	using namespace cv;
-	VideoCapture cap(0); 	// open the default camera
-	if(!cap.isOpened())		// check if we succeeded
-    	exit(0);
-    	
-	Mat edges;
-	//namedWindow("video",1);
-
-	int frame_width = cap.get(CV_CAP_PROP_FRAME_WIDTH);
-   	int frame_height = cap.get(CV_CAP_PROP_FRAME_HEIGHT);
-
-	VideoWriter video("out.avi",CV_FOURCC('M','J','P','G'),10, Size(frame_width,frame_height),true);
-
-	for(;;){
-
-    	Mat frame;
-    	cap >> frame; 		// get a new frame from camera
-  
-    	video.write(frame);
- 
-    	//imshow("video", frame);
-    	
-    	if(waitKey(30) >= 0) break;
-   	}
-}
-
-void playback_video(int flag) //used by both the live mode and the offline mode
+namespace video
 {
-	using namespace cv;
-	VideoCapture cap;
-	if(flag == 0) // offline mode
-		cap.open("out.avi");
-	else // live mode
-		cap.open(0);
-	
-	if(!cap.isOpened())		// check if we succeeded
-    		return;
-    	
-	Mat frame;
-	namedWindow("video", 1);
+	void capture_video() //used only by record mode
+	{	
+		using namespace cv;
+		VideoCapture cap(0); 	// open the default camera
+		if(!cap.isOpened())		// check if we succeeded
+	    	exit(0);
+	    	
+		Mat edges;
+		//namedWindow("video",1);
 
-	for(;;){	
-    	cap >> frame; 		// get a new frame from camera
-    	if(!frame.data) break;
-    	imshow("video", frame);
-    	if(waitKey(30) >= 0) break;
-   	}
+		int frame_width = cap.get(CV_CAP_PROP_FRAME_WIDTH);
+	   	int frame_height = cap.get(CV_CAP_PROP_FRAME_HEIGHT);
 
-   	destroyWindow("video");
+		VideoWriter video("out.avi",CV_FOURCC('M','J','P','G'),10, Size(frame_width,frame_height),true);
 
+		for(;;){
+
+	    	Mat frame;
+	    	cap >> frame; 		// get a new frame from camera
+	  
+	    	video.write(frame);
+	 
+	    	//imshow("video", frame);
+	    	
+	    	if(waitKey(30) >= 0) break;
+	   	}
+	}
+
+	void playback_video(int flag) //used by both the live mode and the offline mode
+	{
+		using namespace cv;
+		VideoCapture cap;
+		if(flag == 0) // offline mode
+			cap.open("out.avi");
+		else // live mode
+			cap.open(0);
+		
+		if(!cap.isOpened())		// check if we succeeded
+	    		return;
+	    	
+		Mat frame;
+		namedWindow("video", 1);
+
+		for(;;){	
+	    	cap >> frame; 		// get a new frame from camera
+	    	if(!frame.data) break;
+	    	imshow("video", frame);
+	    	if(waitKey(30) >= 0) break;
+	   	}
+
+	   	destroyWindow("video");
+
+	}
 }
 
 /* ------------------------------------------------------------*/
@@ -268,11 +271,9 @@ void packetHandler(u_char *userData, const struct pcap_pkthdr* pkthdr, const u_c
 	//insert function here to extract xyz from processed_packet and return the cloud to be visualized below
 	pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud;
 	cloud = extract_xyz(processed_packet);
-	//pcl::io::savePCDFileASCII("test_pcd.pcd", cloud);
-	//cout << cloud.x << endl;
+
 	if(global_ctr == cycle_num){ //buffer
 		viewer->showCloud(cloud);
-		usleep(300000); //0.1s delayS
 	}	
 	
 	//end the program if the viewer was closed by the user
@@ -294,7 +295,32 @@ namespace offline
 		giant_vector -> push_back(processed_packet);
 	}
 
-	//void pcap_viewer(u_char *vector_ptr)
+	void pcap_viewer(u_char *ptr_to_vector)
+	{
+		pcl::visualization::CloudViewer viewer("Offline Mode");
+		pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud;
+
+		viewer.runOnVisualizationThreadOnce (viewerOneOff);
+		viewer.runOnVisualizationThread (viewerPsycho);
+
+		vector<struct data_packet> *giant_vector = (vector<struct data_packet> *) ptr_to_vector;
+		struct data_packet curr_processed_packet;
+		
+		for(int i = 0; i < giant_vector -> size(); i++){
+			curr_processed_packet = giant_vector -> at(i);
+			cloud = extract_xyz(curr_processed_packet);
+
+			if(global_ctr == cycle_num){
+				viewer.showCloud(cloud);
+				usleep(delay_us);
+			}
+
+			if(viewer.wasStopped()){
+				cout << "Viewer Stopped" << endl;
+				exit(0);
+			}
+		}
+	}
 
 }
 
