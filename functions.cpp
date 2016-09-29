@@ -23,6 +23,8 @@
 
 #include <string>
 #include <unistd.h>
+#include <vector>
+#include "data_structures.cpp"
 
 #define PI 3.14159265
 // list elevation angles corresponding to each of the 32 laser beams for the HDL-32
@@ -40,18 +42,7 @@ const double elev_angles[32] = {-15, 1, -13, 3, -11, 5, -9, 7, -7, 9, -5,
    -------------Structs needed to decode ethernet packets-------
    -------------------------------------------------------------*/
 
-struct fire_data {
-	uint16_t block_id;
-	double azimuth;
-	double dist[32];
-	double intensity[32];
-};
-
-struct data_packet {
-	uint8_t header[42];
-	fire_data payload[12];
-	uint8_t footer[6];
-};
+using namespace std;
 
 int global_ctr = 0;		//to print out the packet number
 const int cycle_num = 581;	
@@ -290,4 +281,22 @@ void packetHandler(u_char *userData, const struct pcap_pkthdr* pkthdr, const u_c
 		exit(0);
 	}    
 }
+
+namespace offline
+{
+	void pcap_copier(u_char *ptr_to_vector, const struct pcap_pkthdr* pkthdr, const u_char* packet) 
+	{
+		vector<struct data_packet> *giant_vector = (vector<struct data_packet> *) ptr_to_vector;
+		
+		struct data_packet processed_packet;
+		data_structure_builder(pkthdr, packet, processed_packet);
+
+		giant_vector -> push_back(processed_packet);
+	}
+
+	//void pcap_viewer(u_char *vector_ptr)
+
+}
+
+
 

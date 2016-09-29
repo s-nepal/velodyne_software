@@ -1,8 +1,6 @@
 #include <iostream>
 #include <assert.h>
 
-#include "functions.cpp"
-
 #include <string>
 #include <fstream>
 #include <vector>
@@ -12,6 +10,9 @@
 
 #include <thread>
 #include <sys/wait.h>
+
+//#include "data_structures.cpp"
+#include "functions.cpp"
 
 using namespace std;
  
@@ -92,48 +93,77 @@ int main(int argc, char *argv[])
 	
 	if(argv[1] == s[2]) // offline mode
 	{
-		int pid = fork();
-		if(pid < 0){
-			cout << "fork error" << endl;
-			exit(0);
-		}
-		
-		else if(pid == 0){ // first fork to visualize Sample_1.pcap
-			pcl::visualization::CloudViewer viewer("Sample_1");
-			descr = pcap_open_offline("Sample_1.pcap", errbuf);
-  			if (descr == NULL) {
- 				cout << "pcap_open_offline() failed: " << errbuf << endl;
- 				return 1;
-  			}
-			viewer.runOnVisualizationThreadOnce (viewerOneOff);
-			viewer.runOnVisualizationThread (viewerPsycho);
-			//loop through the pcap file and extract the packets
-			pcap_loop(descr, 0, packetHandler, (u_char *) &viewer);
+		cout << "Offline Mode Entered" << endl;
 
-			while(!viewer.wasStopped()){
-  				//do nothing
-  			}
-  			
-		} 
-		else { // second fork to visualize Sample_2.pcap
-			pcl::visualization::CloudViewer viewer("Sample_2");
-			std::thread t1(playback_video, 0);
-			descr = pcap_open_offline("Sample_2.pcap", errbuf);
-			if (descr == NULL) {
-				cout << "pcap_open_offline() failed: " << errbuf << endl;
-				return 1;
-			}
-			viewer.runOnVisualizationThreadOnce (viewerOneOff);
-			viewer.runOnVisualizationThread (viewerPsycho);
-			pcap_loop(descr, 0, packetHandler, (u_char *) &viewer);
-			int w = wait(NULL);
-			t1.join();
-			while(!viewer.wasStopped()){
-				//do nothing
-			}
+		// Fill 2 giant vectors with the contents of the 2 pcap files
+		pcap_t *descr_I;
+		pcap_t *descr_II;
+
+		descr_I = pcap_open_offline("Sample_1.pcap", errbuf);
+		if (descr_I == NULL) {
+			cout << "pcap_open_offline() failed: " << errbuf << endl;
+			return 1;
   		}
+  		vector<struct data_packet> giant_vector_I;
+  		pcap_loop(descr_I, 0, offline::pcap_copier, (u_char *) &giant_vector_I);
 
-	}	
+  		descr_II = pcap_open_offline("Sample_2.pcap", errbuf);	
+  		if (descr_II == NULL) {
+			cout << "pcap_open_offline() failed: " << errbuf << endl;
+			return 1;
+  		}
+  		vector<struct data_packet> giant_vector_II;	
+  		pcap_loop(descr_II, 0, offline::pcap_copier, (u_char *) &giant_vector_II);
+
+  		// cout << "giant_vector_I size: " << giant_vector_I.size() << endl;
+  		// cout << "giant_vector_II size: " << giant_vector_II.size() << endl;
+
+  		// for(int i = 0; i < 42; i++)
+  		// 	cout << (double)giant_vector_I.at(0).header[i] << endl;
+
+	// 	int pid = fork();
+	// 	if(pid < 0){
+	// 		cout << "fork error" << endl;
+	// 		exit(0);
+	// 	}
+		
+	// 	else if(pid == 0){ // first fork to visualize Sample_1.pcap
+	// 		pcl::visualization::CloudViewer viewer("Sample_1");
+	// 		descr = pcap_open_offline("Sample_1.pcap", errbuf);
+ //  			if (descr == NULL) {
+ // 				cout << "pcap_open_offline() failed: " << errbuf << endl;
+ // 				return 1;
+ //  			}
+	// 		viewer.runOnVisualizationThreadOnce (viewerOneOff);
+	// 		viewer.runOnVisualizationThread (viewerPsycho);
+	// 		//loop through the pcap file and extract the packets
+	// 		pcap_loop(descr, 0, packetHandler, (u_char *) &viewer);
+
+	// 		while(!viewer.wasStopped()){
+ //  				//do nothing
+ //  			}
+  			
+	// 	} 
+	// 	else { // second fork to visualize Sample_2.pcap
+	// 		pcl::visualization::CloudViewer viewer("Sample_2");
+	// 		std::thread t1(playback_video, 0);
+	// 		descr = pcap_open_offline("Sample_2.pcap", errbuf);
+	// 		if (descr == NULL) {
+	// 			cout << "pcap_open_offline() failed: " << errbuf << endl;
+	// 			return 1;
+	// 		}
+	// 		viewer.runOnVisualizationThreadOnce (viewerOneOff);
+	// 		viewer.runOnVisualizationThread (viewerPsycho);
+	// 		pcap_loop(descr, 0, packetHandler, (u_char *) &viewer);
+	// 		int w = wait(NULL);
+	// 		t1.join();
+	// 		while(!viewer.wasStopped()){
+	// 			//do nothing
+	// 		}
+ //  		}
+
+	// }	
+  	}
 	cout << "------------" << endl;
   
   	return 0;
