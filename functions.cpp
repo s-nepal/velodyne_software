@@ -46,7 +46,7 @@ using namespace std;
 
 int global_ctr = 0;		//to print out the packet number
 const int cycle_num = 100;
-const int delay_us = 85000;	
+const int delay_us = 90000;	
 int user_data;
 
 
@@ -295,13 +295,15 @@ namespace offline
 		giant_vector -> push_back(processed_packet);
 	}
 
-	void pcap_viewer(u_char *ptr_to_vector)
-	{
-		pcl::visualization::CloudViewer viewer("Offline Mode");
+	void pcap_viewer(u_char *ptr_to_vector, u_char *ptr_to_viewer)
+	{	
+		pcl::visualization::CloudViewer *viewer = (pcl::visualization::CloudViewer *) ptr_to_viewer;
+
+		//pcl::visualization::CloudViewer viewer("Offline Mode");
 		pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud;
 
-		viewer.runOnVisualizationThreadOnce (viewerOneOff);
-		viewer.runOnVisualizationThread (viewerPsycho);
+		// viewer.runOnVisualizationThreadOnce (viewerOneOff);
+		// viewer.runOnVisualizationThread (viewerPsycho);
 
 		vector<struct data_packet> *giant_vector = (vector<struct data_packet> *) ptr_to_vector;
 		struct data_packet curr_processed_packet;
@@ -311,11 +313,11 @@ namespace offline
 			cloud = extract_xyz(curr_processed_packet);
 
 			if(global_ctr == cycle_num){
-				viewer.showCloud(cloud);
+				viewer->showCloud(cloud);
 				usleep(delay_us);
 			}
 
-			if(viewer.wasStopped()){
+			if(viewer->wasStopped()){
 				cout << "Viewer Stopped" << endl;
 				exit(0);
 			}

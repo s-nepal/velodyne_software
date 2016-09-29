@@ -122,10 +122,28 @@ int main(int argc, char *argv[])
 		}
 
 		else if(pid == 0){
+			pcl::visualization::CloudViewer viewer("Sample_1");
+			viewer.runOnVisualizationThreadOnce (viewerOneOff);
+			viewer.runOnVisualizationThread (viewerPsycho);
+			offline::pcap_viewer((u_char *) &giant_vector_I, (u_char *) &viewer);
 
+			while(!viewer.wasStopped()){
+ 				//do nothing
+  			}
+		} else {
+			std::thread t1(video::playback_video, 0);
+			pcl::visualization::CloudViewer viewer("Sample_2");
+			viewer.runOnVisualizationThreadOnce (viewerOneOff);
+			viewer.runOnVisualizationThread (viewerPsycho);
+			offline::pcap_viewer((u_char *) &giant_vector_II, (u_char *) &viewer);
+			t1.join();
+			while(!viewer.wasStopped()){
+ 				//do nothing
+  			}
 		}
 
-		offline::pcap_viewer((u_char *) &giant_vector_I);
+
+		
 
   		// cout << "giant_vector_I size: " << giant_vector_I.size() << endl;
   		// cout << "giant_vector_II size: " << giant_vector_II.size() << endl;
