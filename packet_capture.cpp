@@ -1,8 +1,6 @@
 #include <iostream>
 #include <assert.h>
 
-#include "functions.cpp"
-
 #include <string>
 #include <fstream>
 #include <vector>
@@ -12,6 +10,9 @@
 
 #include <thread>
 #include <sys/wait.h>
+
+//#include "data_structures.cpp"
+#include "functions.cpp"
 
 using namespace std;
  
@@ -53,7 +54,7 @@ int main(int argc, char *argv[])
 			viewer.runOnVisualizationThreadOnce (viewerOneOff);
     		viewer.runOnVisualizationThread (viewerPsycho);
     		//loop through the pcap file and extract the packets
-    		pcap_loop(descr, 0, packetHandler, (u_char *) &viewer);
+    		pcap_loop(descr, 0, live::packetHandler, (u_char *) &viewer);
  
 			while(!viewer.wasStopped()){
   				//do nothing
@@ -62,7 +63,7 @@ int main(int argc, char *argv[])
 		else {
 
 			pcl::visualization::CloudViewer viewer("Data from eth1");
-			std::thread t1(playback_video, 1);
+			std::thread t1(video::playback_video, 1);
 			descr = pcap_open_live("eth1", 1248, 1, 1, errbuf);
 			if (descr == NULL) {
 				cout << "pcap_open_live() failed: " << errbuf << endl;
@@ -70,7 +71,7 @@ int main(int argc, char *argv[])
 			}
 			viewer.runOnVisualizationThreadOnce (viewerOneOff);
 			viewer.runOnVisualizationThread (viewerPsycho);
-			pcap_loop(descr, 0, packetHandler, (u_char *) &viewer);
+			pcap_loop(descr, 0, live::packetHandler, (u_char *) &viewer);
 			int w = wait(NULL);
 			t1.join();
 			while(!viewer.wasStopped()){
@@ -81,9 +82,9 @@ int main(int argc, char *argv[])
 
 	if(argv[1] == s[1]) // record mode
 	{
-		std::thread t1(capture_video);
-		std::thread t2(save_pcap, "eth0", "Sample_1.pcap");
-		std::thread t3(save_pcap, "eth1", "Sample_2.pcap");
+		thread t1(video::capture_video);
+		thread t2(record::save_pcap, "eth0", "Sample_1.pcap");
+		thread t3(record::save_pcap, "eth1", "Sample_2.pcap");
 		
 		t2.join();
 		t3.join();
@@ -92,48 +93,55 @@ int main(int argc, char *argv[])
 	
 	if(argv[1] == s[2]) // offline mode
 	{
-		int pid = fork();
+		cout << "Offline Mode Entered" << endl;
+
+		// Fill 2 giant vectors with the contents of the 2 pcap files
+		pcap_t *descr_I;
+		pcap_t *descr_II;
+
+		descr_I = pcap_open_offline("Sample_1.pcap", errbuf);
+		if (descr_I == NULL) {
+			cout << "pcap_open_offline() failed: " << errbuf << endl;
+			return 1;
+  		}
+  		vector<struct data_packet> giant_vector_I;
+  		pcap_loop(descr_I, 0, offline::pcap_copier, (u_char *) &giant_vector_I);
+
+  		descr_II = pcap_open_offline("Sample_2.pcap", errbuf);	
+  		if (descr_II == NULL) {
+			cout << "pcap_open_offline() failed: " << errbuf << endl;
+			return 1;
+  		}
+  		vector<struct data_packet> giant_vector_II;	
+  		pcap_loop(descr_II, 0, offline::pcap_copier, (u_char *) &giant_vector_II);
+
+  		int pid = fork();
 		if(pid < 0){
 			cout << "fork error" << endl;
 			exit(0);
 		}
-		
-		else if(pid == 0){ // first fork to visualize Sample_1.pcap
+
+		else if(pid == 0){
 			pcl::visualization::CloudViewer viewer("Sample_1");
-			descr = pcap_open_offline("Sample_1.pcap", errbuf);
-  			if (descr == NULL) {
- 				cout << "pcap_open_offline() failed: " << errbuf << endl;
- 				return 1;
-  			}
 			viewer.runOnVisualizationThreadOnce (viewerOneOff);
 			viewer.runOnVisualizationThread (viewerPsycho);
-			//loop through the pcap file and extract the packets
-			pcap_loop(descr, 0, packetHandler, (u_char *) &viewer);
+			offline::pcap_viewer((u_char *) &giant_vector_I, (u_char *) &viewer);
 
 			while(!viewer.wasStopped()){
-  				//do nothing
+ 				//do nothing
   			}
-  			
-		} 
-		else { // second fork to visualize Sample_2.pcap
+		} else {
+			thread t1(video::playback_video, 0);
 			pcl::visualization::CloudViewer viewer("Sample_2");
-			std::thread t1(playback_video, 0);
-			descr = pcap_open_offline("Sample_2.pcap", errbuf);
-			if (descr == NULL) {
-				cout << "pcap_open_offline() failed: " << errbuf << endl;
-				return 1;
-			}
 			viewer.runOnVisualizationThreadOnce (viewerOneOff);
 			viewer.runOnVisualizationThread (viewerPsycho);
-			pcap_loop(descr, 0, packetHandler, (u_char *) &viewer);
-			int w = wait(NULL);
+			offline::pcap_viewer((u_char *) &giant_vector_II, (u_char *) &viewer);
 			t1.join();
 			while(!viewer.wasStopped()){
-				//do nothing
-			}
-  		}
-
-	}	
+ 				//do nothing
+  			}
+		}
+  	}
 	cout << "------------" << endl;
   
   	return 0;
