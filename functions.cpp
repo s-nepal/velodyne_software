@@ -12,7 +12,7 @@
 #include <pcl/range_image/range_image.h>
 #include <pcl/visualization/range_image_visualizer.h>
 
-#include "opencv2/opencv.hpp"
+
 
 #include <pcap.h>
 #include <net/ethernet.h>
@@ -25,6 +25,7 @@
 #include <unistd.h>
 #include <vector>
 #include "data_structures.cpp"
+#include "video.cpp"
 
 #define PI 3.14159265
 // list elevation angles corresponding to each of the 32 laser beams for the HDL-32
@@ -38,14 +39,10 @@ const double elev_angles[32] = {-15, 1, -13, 3, -11, 5, -9, 7, -7, 9, -5,
 								11, -3, 13, -1, 15};
 
 
-/* -------------------------------------------------------------
-   -------------Structs needed to decode ethernet packets-------
-   -------------------------------------------------------------*/
-
 using namespace std;
 
 int global_ctr = 0;		//to print out the packet number
-const int cycle_num = 100;
+const int cycle_num = 50;
 const int delay_us = 90000;	
 int user_data;
 
@@ -54,7 +51,7 @@ int user_data;
 //Ancillary function for PCL
 void viewerOneOff (pcl::visualization::PCLVisualizer& viewer)
 {	
-	viewer.setBackgroundColor (255,255,255); // black background
+	viewer.setBackgroundColor (255,255,255); // white background
 	//viewer.setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE,2); // size of point clouds
 	viewer.setRepresentationToSurfaceForAllActors();
 	viewer.addCoordinateSystem (2);
@@ -71,68 +68,6 @@ void viewerPsycho (pcl::visualization::PCLVisualizer& viewer)
 	ss << "Once per viewer loop: " << count++;
 	viewer.removeShape ("text", 0);
 	user_data++;	
-}
-
-/* ------------------------------------------------------------*/
-
-/* -------------------------------------------------------------
-   -------------Capture video-----------------------------------
-   -------------------------------------------------------------*/
-namespace video
-{
-	void capture_video() //used only by record mode
-	{	
-		using namespace cv;
-		VideoCapture cap(0); 	// open the default camera
-		if(!cap.isOpened())		// check if we succeeded
-	    	exit(0);
-	    	
-		Mat edges;
-		//namedWindow("video",1);
-
-		int frame_width = cap.get(CV_CAP_PROP_FRAME_WIDTH);
-	   	int frame_height = cap.get(CV_CAP_PROP_FRAME_HEIGHT);
-
-		VideoWriter video("out.avi",CV_FOURCC('M','J','P','G'),10, Size(frame_width,frame_height),true);
-
-		for(;;){
-
-	    	Mat frame;
-	    	cap >> frame; 		// get a new frame from camera
-	  
-	    	video.write(frame);
-	 
-	    	//imshow("video", frame);
-	    	
-	    	if(waitKey(30) >= 0) break;
-	   	}
-	}
-
-	void playback_video(int flag) //used by both the live mode and the offline mode
-	{
-		using namespace cv;
-		VideoCapture cap;
-		if(flag == 0) // offline mode
-			cap.open("out.avi");
-		else // live mode
-			cap.open(0);
-		
-		if(!cap.isOpened())		// check if we succeeded
-	    		return;
-	    	
-		Mat frame;
-		namedWindow("video", 1);
-
-		for(;;){	
-	    	cap >> frame; 		// get a new frame from camera
-	    	if(!frame.data) break;
-	    	imshow("video", frame);
-	    	if(waitKey(30) >= 0) break;
-	   	}
-
-	   	destroyWindow("video");
-
-	}
 }
 
 /* ------------------------------------------------------------*/
@@ -189,6 +124,52 @@ namespace data_structure
 	}
 
 
+	void colorize_point_cloud(double curr_intensity, pcl::PointXYZRGBA *sample)
+	{	
+		double intensity_range = 63; //any intensity value above 63 will be red
+		double wavelength;
+
+		if(curr_intensity <= 63)
+			wavelength = curr_intensity / intensity_range * (780-380) + 380;
+		else
+			wavelength = 780;
+
+		if((wavelength >= 380) && (wavelength<440)){
+			sample->r = (-(wavelength - 440) / (440 - 380))*255;
+			sample->g = 0;
+			sample->b = 255;
+			
+		}else if((wavelength >= 440) && (wavelength<490)){
+			sample->r = 0;
+			sample->g = ((wavelength - 440) / (490 - 440))*255;
+			sample->b = 255;
+			
+		}else if((wavelength >= 490) && (wavelength<510)){
+			sample->r = 0;
+			sample->g = 255;
+			sample->b = (-(wavelength - 510) / (510 - 490))*255;
+			
+		}else if((wavelength >= 510) && (wavelength<580)){
+			sample->r = ((wavelength - 510) / (580 - 510))*255;
+			sample->g = 255;
+			sample->b = 0;
+			
+		}else if((wavelength >= 580) && (wavelength<645)){
+			sample->r = 255;
+			sample->g = (-(wavelength - 645) / (645 - 580))*255;
+			sample->b = 0;
+
+		}else if((wavelength >= 645) && (wavelength<781)){
+			sample->r = 255;
+			sample->g = 0;
+			sample->b = 0;
+		}else{
+			sample->r = 0;
+			sample->g = 0;
+			sample->b = 0;
+		}
+	}
+
 	/* -------------------------------------------------------------
 	   --------------------extract_xyz------------------------------
 	   Input: processed_packet of data_packet struct
@@ -205,11 +186,13 @@ namespace data_structure
 			double curr_azimuth = (processed_packet.payload[i].azimuth) * PI / 180; //convert degrees to radians
 			for(int j = 0; j < 32; j++){
 				double curr_dist = processed_packet.payload[i].dist[j];
+				double curr_intensity = processed_packet.payload[i].intensity[j];
 				double curr_elev_angle = (elev_angles[j]) * PI / 180;
 				sample.x = curr_dist * sin(curr_azimuth);
 				sample.y = curr_dist * cos(curr_azimuth);
 				sample.z = curr_dist * sin(curr_elev_angle);
-				sample.r = 255; sample.g = 0; sample.b = 0;
+				//call function to colorize the point cloud
+				colorize_point_cloud(curr_intensity, &sample);
 				cloud -> points.push_back(sample);
 			}
 		}
@@ -223,6 +206,7 @@ namespace data_structure
 
 		return cloud;
 	}
+
 }
 
 /* -------------------------------------------------------------
