@@ -38,9 +38,10 @@ namespace video
 	void playback_video(int flag) //used by both the live mode and the offline mode
 	{
 		using namespace cv;
+		bool playVideo = true;
 		VideoCapture cap;
 		if(flag == 0) // offline mode
-			cap.open("out.avi");
+			cap.open("out.divx");
 		else // live mode
 			cap.open(0);
 		
@@ -51,10 +52,14 @@ namespace video
 		namedWindow("video", 1);
 
 		for(;;){	
-	    	cap >> frame; 		// get a new frame from camera
+			if(playVideo)
+	    		cap >> frame; // get a new frame from camera
 	    	if(!frame.data) break;
 	    	imshow("video", frame);
-	    	if(waitKey(30) >= 0) break;
+	    	char key = waitKey(5);
+        	if(key == 'p')
+            	playVideo = !playVideo;
+	    	//if(waitKey(30) >= 0) break;
 	   	}
 
 	   	destroyWindow("video");

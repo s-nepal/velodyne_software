@@ -275,7 +275,8 @@ namespace live
 }
 
 namespace offline
-{
+{	
+	//This function copies an entire pcap file into a vector within the code
 	void pcap_copier(u_char *ptr_to_vector, const struct pcap_pkthdr* pkthdr, const u_char* packet) 
 	{
 		vector<struct data_packet> *giant_vector = (vector<struct data_packet> *) ptr_to_vector;
@@ -288,23 +289,23 @@ namespace offline
 
 	void pcap_viewer(u_char *ptr_to_vector, u_char *ptr_to_viewer)
 	{	
+		bool play_cloud = true;
 		pcl::visualization::CloudViewer *viewer = (pcl::visualization::CloudViewer *) ptr_to_viewer;
 
-		//pcl::visualization::CloudViewer viewer("Offline Mode");
 		pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud;
-
-		// viewer.runOnVisualizationThreadOnce (viewerOneOff);
-		// viewer.runOnVisualizationThread (viewerPsycho);
 
 		vector<struct data_packet> *giant_vector = (vector<struct data_packet> *) ptr_to_vector;
 		struct data_packet curr_processed_packet;
 		
 		for(int i = 0; i < giant_vector -> size(); i++){
 			curr_processed_packet = giant_vector -> at(i);
-			cloud = data_structure::extract_xyz(curr_processed_packet);
+			cloud = data_structure::extract_xyz(curr_processed_packet); //The size of cloud progressively increases until global_ctr == cycle_num
 
-			if(global_ctr == cycle_num){
+			if(global_ctr == cycle_num && play_cloud){
 				viewer->showCloud(cloud);
+				//char key = cv::waitKey(5);
+				// if(key == 'p')
+    //         		play_cloud = !play_cloud;
 				usleep(delay_us);
 			}
 
