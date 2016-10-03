@@ -54,7 +54,7 @@ int main(int argc, char *argv[])
 			viewer.runOnVisualizationThreadOnce (viewerOneOff);
     		viewer.runOnVisualizationThread (viewerPsycho);
     		//loop through the pcap file and extract the packets
-    		pcap_loop(descr, 0, live::packetHandler, (u_char *) &viewer);
+    		pcap_loop(descr, 0, live::packetHandler_1, (u_char *) &viewer);
  
 			while(!viewer.wasStopped()){
   				//do nothing
@@ -71,7 +71,7 @@ int main(int argc, char *argv[])
 			}
 			viewer.runOnVisualizationThreadOnce (viewerOneOff);
 			viewer.runOnVisualizationThread (viewerPsycho);
-			pcap_loop(descr, 0, live::packetHandler, (u_char *) &viewer);
+			pcap_loop(descr, 0, live::packetHandler_2, (u_char *) &viewer);
 			int w = wait(NULL);
 			t1.join();
 			while(!viewer.wasStopped()){

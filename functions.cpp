@@ -43,7 +43,7 @@ using namespace std;
 
 int global_ctr = 0;		//to print out the packet number
 const int cycle_num = 50;
-const int delay_us = 90000;	
+const int delay_us = 50000;	
 int user_data;
 
 
@@ -77,7 +77,53 @@ void viewerPsycho (pcl::visualization::PCLVisualizer& viewer)
    -------------------------------------------------------------*/
 namespace data_structure
 {
-	void data_structure_builder(const struct pcap_pkthdr *pkthdr, const u_char *data, struct data_packet& processed_packet)
+	void data_structure_builder_1(const struct pcap_pkthdr *pkthdr, const u_char *data, struct data_packet& processed_packet)
+	{
+	    //printf("Packet size: %d bytes\n", pkthdr->len);		
+		if (pkthdr->len != pkthdr->caplen)
+	    	printf("Warning! Capture size different than packet size: %ld bytes\n", (long)pkthdr->len);
+
+		// return an empty struct if the packet length is not 1248 bytes
+		if(pkthdr -> len != 1248){
+			processed_packet = (const struct data_packet){0};
+			return;
+		}
+				
+		for(int i = 0; i < 42; i++){
+			processed_packet.header[i] = data[i]; // fill in the header
+		}
+
+		//cout << endl;
+		for(int i = 0; i < 6; i++){
+			processed_packet.footer[i] = data[i + 1242]; // fill in the footer
+		}
+
+		// populate the payload (block ID, azimuth, 32 distances, 32 intensities  for each of the 12 data blocks)
+		int curr_byte_index = 42; // not 43 bcz. in C++, indexing starts at 0, not 1
+		uint8_t curr_firing_data[100];
+		fire_data temp[12];
+
+		for(int i = 0; i < 12; i++){
+			for(int j = 0; j < 100; j++){
+				curr_firing_data[j] = data[j + curr_byte_index];
+			}
+			temp[i].block_id = (curr_firing_data[1] << 8) | (curr_firing_data[0]);
+			temp[i].azimuth = (double)((curr_firing_data[3] << 8) | (curr_firing_data[2])) / 100;
+
+			int ctr = 0;
+			for(int j = 0; j < 32; j++){
+				temp[i].dist[j] = (double)((curr_firing_data[4 + ctr + 1] << 8) | curr_firing_data[4 + ctr]) / 500;
+				temp[i].intensity[j] = curr_firing_data[4 + ctr + 2];
+				ctr = ctr + 3;
+			}
+			processed_packet.payload[i] = temp[i];
+			curr_byte_index = curr_byte_index + 100;
+		}
+
+		return;
+	}
+
+	void data_structure_builder_2(const struct pcap_pkthdr *pkthdr, const u_char *data, struct data_packet& processed_packet)
 	{
 	    //printf("Packet size: %d bytes\n", pkthdr->len);		
 		if (pkthdr->len != pkthdr->caplen)
@@ -251,12 +297,34 @@ namespace record
 
 namespace live
 {
-	void packetHandler(u_char *userData, const struct pcap_pkthdr* pkthdr, const u_char* packet) 
+	void packetHandler_1(u_char *userData, const struct pcap_pkthdr* pkthdr, const u_char* packet) 
 	{
 		//assign the packaged ethernet data to the struct
 		pcl::visualization::CloudViewer *viewer = (pcl::visualization::CloudViewer *) userData;
 		struct data_packet processed_packet;
-		data_structure::data_structure_builder(pkthdr, packet, processed_packet);
+		data_structure::data_structure_builder_1(pkthdr, packet, processed_packet);
+
+		//insert function here to extract xyz from processed_packet and return the cloud to be visualized below
+		pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud;
+		cloud = data_structure::extract_xyz(processed_packet);
+
+		if(global_ctr == cycle_num){ //buffer
+			viewer->showCloud(cloud);
+		}	
+		
+		//end the program if the viewer was closed by the user
+		if(viewer->wasStopped()){
+			cout << "Viewer Stopped" << endl;
+			exit(0);
+		}    
+	}
+
+	void packetHandler_2(u_char *userData, const struct pcap_pkthdr* pkthdr, const u_char* packet) 
+	{
+		//assign the packaged ethernet data to the struct
+		pcl::visualization::CloudViewer *viewer = (pcl::visualization::CloudViewer *) userData;
+		struct data_packet processed_packet;
+		data_structure::data_structure_builder_2(pkthdr, packet, processed_packet);
 
 		//insert function here to extract xyz from processed_packet and return the cloud to be visualized below
 		pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud;
@@ -282,14 +350,13 @@ namespace offline
 		vector<struct data_packet> *giant_vector = (vector<struct data_packet> *) ptr_to_vector;
 		
 		struct data_packet processed_packet;
-		data_structure::data_structure_builder(pkthdr, packet, processed_packet);
+		data_structure::data_structure_builder_1(pkthdr, packet, processed_packet);
 
 		giant_vector -> push_back(processed_packet);
 	}
 
 	void pcap_viewer(u_char *ptr_to_vector, u_char *ptr_to_viewer)
 	{	
-		bool play_cloud = true;
 		pcl::visualization::CloudViewer *viewer = (pcl::visualization::CloudViewer *) ptr_to_viewer;
 
 		pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud;
@@ -301,11 +368,11 @@ namespace offline
 			curr_processed_packet = giant_vector -> at(i);
 			cloud = data_structure::extract_xyz(curr_processed_packet); //The size of cloud progressively increases until global_ctr == cycle_num
 
+			if(play_cloud == false)
+				cout << "Play Cloud is false" << endl;
+			
 			if(global_ctr == cycle_num && play_cloud){
 				viewer->showCloud(cloud);
-				//char key = cv::waitKey(5);
-				// if(key == 'p')
-    //         		play_cloud = !play_cloud;
 				usleep(delay_us);
 			}
 

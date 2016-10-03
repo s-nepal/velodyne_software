@@ -1,5 +1,5 @@
 #include "opencv2/opencv.hpp"
-
+bool play_cloud = true;
 /* ------------------------------------------------------------*/
 
 /* -------------------------------------------------------------
@@ -41,12 +41,12 @@ namespace video
 		bool playVideo = true;
 		VideoCapture cap;
 		if(flag == 0) // offline mode
-			cap.open("out.divx");
+			cap.open("out.avi");
 		else // live mode
 			cap.open(0);
 		
 		if(!cap.isOpened())		// check if we succeeded
-	    		return;
+	    	return;
 	    	
 		Mat frame;
 		namedWindow("video", 1);
@@ -56,10 +56,12 @@ namespace video
 	    		cap >> frame; // get a new frame from camera
 	    	if(!frame.data) break;
 	    	imshow("video", frame);
-	    	char key = waitKey(5);
-        	if(key == 'p')
-            	playVideo = !playVideo;
-	    	//if(waitKey(30) >= 0) break;
+	    	/*char key = waitKey(5);
+        	if(key == 'p') //puase video playback if p is pressed
+        		//Set here some kind of flag that also pauses cloud_viewer
+            	playVideo = !playVideo;*/
+            	//play_cloud = !play_cloud; 
+	    	if(waitKey(30) >= 0) break;
 	   	}
 
 	   	destroyWindow("video");
