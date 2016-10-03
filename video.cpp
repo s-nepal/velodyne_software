@@ -56,12 +56,13 @@ namespace video
 	    		cap >> frame; // get a new frame from camera
 	    	if(!frame.data) break;
 	    	imshow("video", frame);
-	    	/*char key = waitKey(5);
-        	if(key == 'p') //puase video playback if p is pressed
+	    	char key = waitKey(30);
+        	if(key == 'p'){ //puase video playback if p is pressed
         		//Set here some kind of flag that also pauses cloud_viewer
-            	playVideo = !playVideo;*/
-            	//play_cloud = !play_cloud; 
-	    	if(waitKey(30) >= 0) break;
+            	playVideo = !playVideo;
+            }
+           	//play_cloud = !play_cloud; 
+	    	//if(waitKey(30) >= 0) break;
 	   	}
 
 	   	destroyWindow("video");
