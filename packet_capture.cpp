@@ -11,7 +11,6 @@
 #include <thread>
 #include <sys/wait.h>
 
-//#include "data_structures.cpp"
 #include "functions.cpp"
 
 using namespace std;
@@ -54,7 +53,7 @@ int main(int argc, char *argv[])
 			viewer.runOnVisualizationThreadOnce (viewerOneOff);
     		viewer.runOnVisualizationThread (viewerPsycho);
     		//loop through the pcap file and extract the packets
-    		pcap_loop(descr, 0, live::packetHandler_1, (u_char *) &viewer);
+    		pcap_loop(descr, 0, live::packetHandler_I, (u_char *) &viewer);
  
 			while(!viewer.wasStopped()){
   				//do nothing
@@ -71,7 +70,7 @@ int main(int argc, char *argv[])
 			}
 			viewer.runOnVisualizationThreadOnce (viewerOneOff);
 			viewer.runOnVisualizationThread (viewerPsycho);
-			pcap_loop(descr, 0, live::packetHandler_2, (u_char *) &viewer);
+			pcap_loop(descr, 0, live::packetHandler_II, (u_char *) &viewer);
 			int w = wait(NULL);
 			t1.join();
 			while(!viewer.wasStopped()){
@@ -105,7 +104,7 @@ int main(int argc, char *argv[])
 			return 1;
   		}
   		vector<struct data_packet> giant_vector_I;
-  		pcap_loop(descr_I, 0, offline::pcap_copier, (u_char *) &giant_vector_I);
+  		pcap_loop(descr_I, 0, offline::pcap_copier_I, (u_char *) &giant_vector_I);
 
   		descr_II = pcap_open_offline("Sample_2.pcap", errbuf);	
   		if (descr_II == NULL) {
@@ -113,7 +112,7 @@ int main(int argc, char *argv[])
 			return 1;
   		}
   		vector<struct data_packet> giant_vector_II;	
-  		pcap_loop(descr_II, 0, offline::pcap_copier, (u_char *) &giant_vector_II);
+  		pcap_loop(descr_II, 0, offline::pcap_copier_II, (u_char *) &giant_vector_II);
 
   		int pid = fork();
 		if(pid < 0){
@@ -125,7 +124,7 @@ int main(int argc, char *argv[])
 			pcl::visualization::CloudViewer viewer("Sample_1");
 			viewer.runOnVisualizationThreadOnce (viewerOneOff);
 			viewer.runOnVisualizationThread (viewerPsycho);
-			offline::pcap_viewer((u_char *) &giant_vector_I, (u_char *) &viewer);
+			offline::pcap_viewer_I((u_char *) &giant_vector_I, (u_char *) &viewer);
 
 			while(!viewer.wasStopped()){
  				//do nothing
@@ -135,7 +134,7 @@ int main(int argc, char *argv[])
 			pcl::visualization::CloudViewer viewer("Sample_2");
 			viewer.runOnVisualizationThreadOnce (viewerOneOff);
 			viewer.runOnVisualizationThread (viewerPsycho);
-			offline::pcap_viewer((u_char *) &giant_vector_II, (u_char *) &viewer);
+			offline::pcap_viewer_II((u_char *) &giant_vector_II, (u_char *) &viewer);
 			t1.join();
 			while(!viewer.wasStopped()){
  				//do nothing

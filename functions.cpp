@@ -77,7 +77,7 @@ void viewerPsycho (pcl::visualization::PCLVisualizer& viewer)
    -------------------------------------------------------------*/
 namespace data_structure
 {
-	void data_structure_builder_1(const struct pcap_pkthdr *pkthdr, const u_char *data, struct data_packet& processed_packet)
+	void data_structure_builder_I(const struct pcap_pkthdr *pkthdr, const u_char *data, struct data_packet& processed_packet)
 	{
 	    //printf("Packet size: %d bytes\n", pkthdr->len);		
 		if (pkthdr->len != pkthdr->caplen)
@@ -123,7 +123,7 @@ namespace data_structure
 		return;
 	}
 
-	void data_structure_builder_2(const struct pcap_pkthdr *pkthdr, const u_char *data, struct data_packet& processed_packet)
+	void data_structure_builder_II(const struct pcap_pkthdr *pkthdr, const u_char *data, struct data_packet& processed_packet)
 	{
 	    //printf("Packet size: %d bytes\n", pkthdr->len);		
 		if (pkthdr->len != pkthdr->caplen)
@@ -223,7 +223,37 @@ namespace data_structure
 	   Extracs x,y,z co-ordinates from processed packet and places in cloud pointer
 	   -------------------------------------------------------------*/
 
-	pcl::PointCloud<pcl::PointXYZRGBA>::Ptr extract_xyz(struct data_packet& processed_packet)
+	pcl::PointCloud<pcl::PointXYZRGBA>::Ptr extract_xyz_I(struct data_packet& processed_packet)
+	{
+		static pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud (new pcl::PointCloud<pcl::PointXYZRGBA>);	
+		pcl::PointXYZRGBA sample;
+
+		for(int i = 0; i < 12; i++){
+			double curr_azimuth = (processed_packet.payload[i].azimuth) * PI / 180; //convert degrees to radians
+			for(int j = 0; j < 32; j++){
+				double curr_dist = processed_packet.payload[i].dist[j];
+				double curr_intensity = processed_packet.payload[i].intensity[j];
+				double curr_elev_angle = (elev_angles[j]) * PI / 180;
+				sample.x = curr_dist * sin(curr_azimuth);
+				sample.y = curr_dist * cos(curr_azimuth);
+				sample.z = curr_dist * sin(curr_elev_angle);
+				//call function to colorize the point cloud
+				colorize_point_cloud(curr_intensity, &sample);
+				cloud -> points.push_back(sample);
+			}
+		}
+
+		if(global_ctr > cycle_num){
+			cloud -> points.clear();
+			global_ctr = 0;
+			//usleep(400000); //0.1s delay
+		}
+		global_ctr++;
+
+		return cloud;
+	}
+
+	pcl::PointCloud<pcl::PointXYZRGBA>::Ptr extract_xyz_II(struct data_packet& processed_packet)
 	{
 		static pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud (new pcl::PointCloud<pcl::PointXYZRGBA>);	
 		pcl::PointXYZRGBA sample;
@@ -297,16 +327,16 @@ namespace record
 
 namespace live
 {
-	void packetHandler_1(u_char *userData, const struct pcap_pkthdr* pkthdr, const u_char* packet) 
+	void packetHandler_I(u_char *userData, const struct pcap_pkthdr* pkthdr, const u_char* packet) 
 	{
 		//assign the packaged ethernet data to the struct
 		pcl::visualization::CloudViewer *viewer = (pcl::visualization::CloudViewer *) userData;
 		struct data_packet processed_packet;
-		data_structure::data_structure_builder_1(pkthdr, packet, processed_packet);
+		data_structure::data_structure_builder_I(pkthdr, packet, processed_packet);
 
 		//insert function here to extract xyz from processed_packet and return the cloud to be visualized below
 		pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud;
-		cloud = data_structure::extract_xyz(processed_packet);
+		cloud = data_structure::extract_xyz_I(processed_packet);
 
 		if(global_ctr == cycle_num){ //buffer
 			viewer->showCloud(cloud);
@@ -319,16 +349,16 @@ namespace live
 		}    
 	}
 
-	void packetHandler_2(u_char *userData, const struct pcap_pkthdr* pkthdr, const u_char* packet) 
+	void packetHandler_II(u_char *userData, const struct pcap_pkthdr* pkthdr, const u_char* packet) 
 	{
 		//assign the packaged ethernet data to the struct
 		pcl::visualization::CloudViewer *viewer = (pcl::visualization::CloudViewer *) userData;
 		struct data_packet processed_packet;
-		data_structure::data_structure_builder_2(pkthdr, packet, processed_packet);
+		data_structure::data_structure_builder_II(pkthdr, packet, processed_packet);
 
 		//insert function here to extract xyz from processed_packet and return the cloud to be visualized below
 		pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud;
-		cloud = data_structure::extract_xyz(processed_packet);
+		cloud = data_structure::extract_xyz_II(processed_packet);
 
 		if(global_ctr == cycle_num){ //buffer
 			viewer->showCloud(cloud);
@@ -345,17 +375,27 @@ namespace live
 namespace offline
 {	
 	//This function copies an entire pcap file into a vector within the code
-	void pcap_copier(u_char *ptr_to_vector, const struct pcap_pkthdr* pkthdr, const u_char* packet) 
+	void pcap_copier_I(u_char *ptr_to_vector, const struct pcap_pkthdr* pkthdr, const u_char* packet) 
 	{
 		vector<struct data_packet> *giant_vector = (vector<struct data_packet> *) ptr_to_vector;
 		
 		struct data_packet processed_packet;
-		data_structure::data_structure_builder_1(pkthdr, packet, processed_packet);
+		data_structure::data_structure_builder_I(pkthdr, packet, processed_packet);
 
 		giant_vector -> push_back(processed_packet);
 	}
 
-	void pcap_viewer(u_char *ptr_to_vector, u_char *ptr_to_viewer)
+	void pcap_copier_II(u_char *ptr_to_vector, const struct pcap_pkthdr* pkthdr, const u_char* packet) 
+	{
+		vector<struct data_packet> *giant_vector = (vector<struct data_packet> *) ptr_to_vector;
+		
+		struct data_packet processed_packet;
+		data_structure::data_structure_builder_II(pkthdr, packet, processed_packet);
+
+		giant_vector -> push_back(processed_packet);
+	}
+
+	void pcap_viewer_I(u_char *ptr_to_vector, u_char *ptr_to_viewer)
 	{	
 		pcl::visualization::CloudViewer *viewer = (pcl::visualization::CloudViewer *) ptr_to_viewer;
 
@@ -366,7 +406,35 @@ namespace offline
 		
 		for(int i = 0; i < giant_vector -> size(); i++){
 			curr_processed_packet = giant_vector -> at(i);
-			cloud = data_structure::extract_xyz(curr_processed_packet); //The size of cloud progressively increases until global_ctr == cycle_num
+			cloud = data_structure::extract_xyz_I(curr_processed_packet); //The size of cloud progressively increases until global_ctr == cycle_num
+
+			if(play_cloud == false)
+				cout << "Play Cloud is false" << endl;
+			
+			if(global_ctr == cycle_num && play_cloud){
+				viewer->showCloud(cloud);
+				usleep(delay_us);
+			}
+
+			if(viewer->wasStopped()){
+				cout << "Viewer Stopped" << endl;
+				exit(0);
+			}
+		}
+	}
+
+	void pcap_viewer_II(u_char *ptr_to_vector, u_char *ptr_to_viewer)
+	{	
+		pcl::visualization::CloudViewer *viewer = (pcl::visualization::CloudViewer *) ptr_to_viewer;
+
+		pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud;
+
+		vector<struct data_packet> *giant_vector = (vector<struct data_packet> *) ptr_to_vector;
+		struct data_packet curr_processed_packet;
+		
+		for(int i = 0; i < giant_vector -> size(); i++){
+			curr_processed_packet = giant_vector -> at(i);
+			cloud = data_structure::extract_xyz_II(curr_processed_packet); //The size of cloud progressively increases until global_ctr == cycle_num
 
 			if(play_cloud == false)
 				cout << "Play Cloud is false" << endl;
