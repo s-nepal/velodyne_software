@@ -11,20 +11,37 @@
 #include <thread>
 #include <sys/wait.h>
 
+//#include "data_structures.cpp"
 #include "functions.cpp"
+#include <signal.h>
 
 using namespace std;
  
 //Define the data structure builder function
 //Input: 1248 byte long UDP data packet
 //Output: Pointer to the data structure
- 
- 
+
+volatile unsigned int pause_sim = 0;
+
+void signalHandler1(int signum)
+{
+	pause_sim = 0;
+	while(pause_sim == 0)
+	{}
+}
+
+void signalHandler2(int signum)
+{
+	pause_sim = 1;
+}
+
+
 pcap_t *descr;
  
 int main(int argc, char *argv[]) 
 {	
-	
+	signal(SIGTSTP, signalHandler1);
+	signal(SIGQUIT, signalHandler2);
 	string s[3] = {"live", "record", "offline"};
 	if(argc < 2)
 	{
@@ -129,16 +146,31 @@ int main(int argc, char *argv[])
 			while(!viewer.wasStopped()){
  				//do nothing
   			}
-		} else {
-			thread t1(video::playback_video, 0);
-			pcl::visualization::CloudViewer viewer("Sample_2");
-			viewer.runOnVisualizationThreadOnce (viewerOneOff);
-			viewer.runOnVisualizationThread (viewerPsycho);
-			offline::pcap_viewer_II((u_char *) &giant_vector_II, (u_char *) &viewer);
-			t1.join();
-			while(!viewer.wasStopped()){
- 				//do nothing
+		} 
+		else {
+			int pid1 = fork();
+			if(pid1 < 0){
+				cout << "fork error" << endl;
+				exit(0);
+			}
+			else if(pid1 == 0){
+				video::playback_video(0);
+			}
+
+			else{
+
+				//thread t1(video::playback_video, 0);
+				pcl::visualization::CloudViewer viewer("Sample_2");
+				viewer.runOnVisualizationThreadOnce (viewerOneOff);
+				viewer.runOnVisualizationThread (viewerPsycho);
+				offline::pcap_viewer_II((u_char *) &giant_vector_II, (u_char *) &viewer);
+				//t1.join();
+				while(!viewer.wasStopped()){
+						//do nothing
+  				}
+  				int w = wait(NULL);
   			}
+  			int w1 = wait(NULL);
 		}
   	}
 	cout << "------------" << endl;
