@@ -27,6 +27,9 @@
 #include "data_structures.cpp"
 #include "video.cpp"
 
+#include <sys/types.h>
+#include <sys/mman.h>
+
 #define PI 3.14159265
 // list elevation angles corresponding to each of the 32 laser beams for the HDL-32
 // const double elev_angles[32] = {-30.67, -9.33, -29.33, -8, -28, -6.66,
@@ -45,6 +48,40 @@ int global_ctr = 0;		//to print out the packet number
 const int cycle_num = 50;
 const int delay_us = 50000;	
 int user_data;
+
+
+
+void keyboardEventOccurred (const pcl::visualization::KeyboardEvent &event,
+                            void* viewer_void)
+{
+  pcl::visualization::PCLVisualizer *viewer = static_cast<pcl::visualization::PCLVisualizer *> (viewer_void);
+  if (event.getKeySym () == "space" && event.keyDown ())
+  {
+    if(*pause_sim_kb == 0){
+    	*pause_sim_kb = 1;
+    	std::cout << "Pausing the simulation " << std::endl;
+    }
+    else if(*pause_sim_kb == 1){
+    	*pause_sim_kb = 0;
+    }
+  }
+}
+
+void mouseEventOccurred (const pcl::visualization::MouseEvent &event,
+                         void* viewer_void)
+{
+  pcl::visualization::PCLVisualizer *viewer = static_cast<pcl::visualization::PCLVisualizer *> (viewer_void);
+  if (event.getButton () == pcl::visualization::MouseEvent::LeftButton &&
+      event.getType () == pcl::visualization::MouseEvent::MouseButtonPress)
+  {
+    std::cout << "Left mouse button released at position (" << event.getX () << ", " << event.getY () << ")" << std::endl;
+
+    char str[512];
+    //sprintf (str, "text#%03d", text_id ++);
+    //while(1){}
+    //viewer->addText ("clicked here", event.getX (), event.getY (), str);
+  }
+}
 
 
 /* -------------------------------------------------------------*/
@@ -405,6 +442,7 @@ namespace offline
 		struct data_packet curr_processed_packet;
 		
 		for(int i = 0; i < giant_vector -> size(); i++){
+			while(*pause_sim_kb == 1){}
 			curr_processed_packet = giant_vector -> at(i);
 			cloud = data_structure::extract_xyz_I(curr_processed_packet); //The size of cloud progressively increases until global_ctr == cycle_num
 
@@ -433,6 +471,7 @@ namespace offline
 		struct data_packet curr_processed_packet;
 		
 		for(int i = 0; i < giant_vector -> size(); i++){
+			while(*pause_sim_kb == 1){}
 			curr_processed_packet = giant_vector -> at(i);
 			cloud = data_structure::extract_xyz_II(curr_processed_packet); //The size of cloud progressively increases until global_ctr == cycle_num
 

@@ -1,4 +1,5 @@
 #include "opencv2/opencv.hpp"
+volatile unsigned int *pause_sim_kb = 0;
 bool play_cloud = true;
 /* ------------------------------------------------------------*/
 
@@ -12,7 +13,7 @@ namespace video
 		using namespace cv;
 		VideoCapture cap(0); 	// open the default camera
 		if(!cap.isOpened())		// check if we succeeded
-	    	exit(0);
+	    	return;
 	    	
 		Mat edges;
 		//namedWindow("video",1);
@@ -52,6 +53,7 @@ namespace video
 		namedWindow("video", 1);
 
 		for(;;){	
+			while(*pause_sim_kb == 1){}
 			if(playVideo)
 	    		cap >> frame; // get a new frame from camera
 	    	if(!frame.data) break;
