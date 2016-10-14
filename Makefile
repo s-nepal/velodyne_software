@@ -1,7 +1,7 @@
 # Makefile
 
 CXX = g++
-OFLAG = -O3
+OFLAG = -O3 -Wno-deprecated -Wno-write-strings
 
 CFLAGS = `pkg-config --cflags opencv`
 LDFLAGS = `pkg-config --libs opencv`
@@ -9,7 +9,7 @@ LDFLAGS = `pkg-config --libs opencv`
 all: main 
 
 main: 
-	$(CXX) -std=c++11 -o main main.cpp $(OFLAG) \
+	@$(CXX) -std=c++11 -o main main.cpp $(OFLAG) \
 	-I. -I/usr/include/pcap/ -I/usr/include/pcl-1.7 -I/usr/include/eigen3 \
 	-I/usr/include/vtk-5.8 \
 	-I/usr/lib/x86_64-linux-gnu/ \

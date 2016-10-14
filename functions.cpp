@@ -167,10 +167,10 @@ namespace data_structure
 	    	printf("Warning! Capture size different than packet size: %ld bytes\n", (long)pkthdr->len);
 
 		// return an empty struct if the packet length is not 1248 bytes
-		if(pkthdr -> len != 1248){
-			processed_packet = (const struct data_packet){0};
-			return;
-		}
+		// if(pkthdr -> len != 1248){
+		// 	processed_packet = (const struct data_packet){0};
+		// 	return;
+		// }
 				
 		for(int i = 0; i < 42; i++){
 			processed_packet.header[i] = data[i]; // fill in the header
@@ -351,7 +351,7 @@ namespace record
 		int pcount;
 		//usleep(100000);
 		if((pcount = pcap_loop(descr1, 0, &pcap_dump, (u_char *) pd)) < 0){
-			cout << "Error in reeading packets " << endl;
+			cout << "Error in reading packets " << endl;
 			exit(0);
 		}
 		

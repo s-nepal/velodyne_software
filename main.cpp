@@ -16,6 +16,7 @@
 #include <signal.h>
 #include "lib.c"
 #include "candump.cpp"
+#include <fstream>
 
 using namespace std;
  
@@ -27,9 +28,9 @@ pcap_t *descr;
  
 int main(int argc, char *argv[]) 
 {	
-	//define the ethernet ports to acquire data from
 	char *eth_port_1 = "eth0";
 	char *eth_port_2 = "eth10";
+	char *can_port = "vcan0";
 
 	pause_sim_kb = (unsigned int *) mmap(NULL, sizeof (*pause_sim_kb), PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, -1, 0);
 	string s[3] = {"live", "record", "offline"};
@@ -64,25 +65,25 @@ int main(int argc, char *argv[])
 
 			while(!viewer.wasStopped()){
 					//do nothing
-				}
+			}
 		}
 		else {
 
-			pcl::visualization::CloudViewer viewer("Data from eth1");
-			std::thread t1(video::playback_video, 1);
-			descr = pcap_open_live(eth_port_2, 1248, 1, 1, errbuf);
-			if (descr == NULL) {
-				cout << "pcap_open_live() failed: " << errbuf << endl;
-				return 1;
-			}
-			viewer.runOnVisualizationThreadOnce (viewerOneOff);
-			viewer.runOnVisualizationThread (viewerPsycho);
-			pcap_loop(descr, 0, live::packetHandler_II, (u_char *) &viewer);
-			int w = wait(NULL);
-			t1.join();
-			while(!viewer.wasStopped()){
-				//do nothing
-			}
+				pcl::visualization::CloudViewer viewer("Data from eth10");
+				std::thread t1(video::playback_video, 1);
+				descr = pcap_open_live(eth_port_2, 1248, 1, 1, errbuf);
+				if (descr == NULL) {
+					cout << "pcap_open_live() failed: " << errbuf << endl;
+					return 1;
+				}
+				viewer.runOnVisualizationThreadOnce (viewerOneOff);
+				viewer.runOnVisualizationThread (viewerPsycho);
+				pcap_loop(descr, 0, live::packetHandler_II, (u_char *) &viewer);
+				int w = wait(NULL);
+				t1.join();
+				while(!viewer.wasStopped()){
+					//do nothing
+				}
 			}
 	}
 
@@ -107,8 +108,8 @@ int main(int argc, char *argv[])
 			int exec_return = execvp(myargs[0], myargs);
 			*/
 
-			char *myargv[3] = {"./candump", "can0", NULL};
-			int myargc = 2;
+			char *myargv[4] = {"./candump", "-tz", can_port, NULL};
+			int myargc = 3;
 			int can_return = can_main(myargc, myargv);
 			cout << "return from can_main function: " << can_return << endl;
 
@@ -151,14 +152,14 @@ int main(int argc, char *argv[])
 			pcap_loop(descr_II, 0, offline::pcap_copier_II, (u_char *) &giant_vector_II);
 
 			int pid = fork();
-		if(pid < 0){
-			cout << "fork error" << endl;
-			exit(0);
-		}
+			if(pid < 0){
+				cout << "fork error" << endl;
+				exit(0);
+			}
 
 		else if(pid == 0){
 			pcl::visualization::CloudViewer viewer("Sample_1");
-			viewer.registerMouseCallback (mouseEventOccurred, (void*) &viewer);
+			//viewer.registerMouseCallback (mouseEventOccurred, (void*) &viewer);
 			viewer.registerKeyboardCallback (keyboardEventOccurred, (void*) &viewer);
 			viewer.runOnVisualizationThreadOnce (viewerOneOff);
 			viewer.runOnVisualizationThread (viewerPsycho);
@@ -169,31 +170,51 @@ int main(int argc, char *argv[])
 				}
 		} 
 		else {
-			// int pid1 = fork();
-			// if(pid1 < 0){
-			// 	cout << "fork error" << endl;
-			// 	exit(0);
-			// }
-			// else if(pid1 == 0){
-			// 	video::playback_video(0);
-			// }
+			 int pid1 = fork();
+			 if(pid1 < 0){
+			 	cout << "fork error" << endl;
+			 	exit(0);
+			 }
+			 else if(pid1 == 0){
+			 	
+			 	ifstream canData("canData.txt");
+			 	string line, tempStrTime, strTime;
+			 	float time = 0, timePrev = 0;
+			 	std::string::size_type first, last;
+			 	while(getline(canData, line))
+			 	{
+			 		while(*pause_sim_kb == 1){}
+			 		canData >> strTime;
+			 		first = strTime.find("(");
+			 		last = strTime.find(")");
+			 		if(last == std::string::npos){
+			 			break;
+			 		}
 
-			// else{
+			 		tempStrTime = strTime.substr(first+1 , last-1);
+			 		timePrev = time;
+			 		time = stod(tempStrTime);
+			 		cout << line << endl;
+			 		usleep((time - timePrev) * 1000000);
+			 	}
+			 }
 
-			thread t1(video::playback_video, 0);
-			pcl::visualization::CloudViewer viewer("Sample_2");
-			viewer.registerMouseCallback (mouseEventOccurred, (void*) &viewer);
-			viewer.registerKeyboardCallback (keyboardEventOccurred, (void*) &viewer);
-			viewer.runOnVisualizationThreadOnce (viewerOneOff);
-			viewer.runOnVisualizationThread (viewerPsycho);
-			offline::pcap_viewer_II((u_char *) &giant_vector_II, (u_char *) &viewer);
-			while(!viewer.wasStopped()){
-					//do nothing
-				}
-			t1.join();
-			int w = wait(NULL);			
+			else{
+
+				thread t1(video::playback_video, 0);
+				pcl::visualization::CloudViewer viewer("Sample_2");
+				//viewer.registerMouseCallback (mouseEventOccurred, (void*) &viewer);
+				viewer.registerKeyboardCallback (keyboardEventOccurred, (void*) &viewer);
+				viewer.runOnVisualizationThreadOnce (viewerOneOff);
+				viewer.runOnVisualizationThread (viewerPsycho);
+				offline::pcap_viewer_II((u_char *) &giant_vector_II, (u_char *) &viewer);
+				while(!viewer.wasStopped()){
+						//do nothing
+					}
+				t1.join();
+				int w = wait(NULL);	
+			}
 		}
-		
 	cout << "------------" << endl;
   	}
   	return 0;
