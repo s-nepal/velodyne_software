@@ -1,3 +1,5 @@
+#ifndef FUNCTIONS_CPP
+#define FUNCTIONS_CPP
 #include <pcl/visualization/cloud_viewer.h>
 #include <pcl/visualization/pcl_visualizer.h>
 #include <pcl/io/io.h>
@@ -26,9 +28,13 @@
 #include <vector>
 #include "data_structures.cpp"
 #include "video.cpp"
+#include <cstdlib>
 
 #include <sys/types.h>
 #include <sys/mman.h>
+
+#include "lib.c"
+#include "candump.cpp"
 
 #define PI 3.14159265
 // list elevation angles corresponding to each of the 32 laser beams for the HDL-32
@@ -49,7 +55,46 @@ const int cycle_num = 50;
 const int delay_us = 50000;	
 int user_data;
 
+/* -------------------------------------------------------------
+   -------------Functions to compress files into tar------------
+   -------------------------------------------------------------*/
+inline
+void compressFunct(){
+	if(system("tar -czvf data.tar.gz Sample_1.pcap Sample_2.pcap out.avi ") < 0){
+	cout << "error in compressing files" << endl;
+	exit(0);
+	}
+	if(system("rm Sample_1.pcap Sample_2.pcap out.avi") < 0){
+		cout << "error in deleting pcap files" << endl;
+		exit(0);
+	}
+}
 
+void compressFiles(int signum){
+	exit_thread = true;
+	cout << "\nCompressing files into data.tar.gz file ..." << endl;
+	sleep(1);
+	compressFunct();
+	exit(0);
+}
+
+void deleteFiles(int signum){
+	exit_thread = true;
+	cout << "deleting pcap and video files" << endl;
+	if( system("rm Sample_1.pcap Sample_2.pcap out.avi") < 0){
+		cout << "error in deleting files" << endl;	
+	}
+	cout << "done!" << endl;
+	exit(0);
+}
+
+inline
+void canData(){
+	char *myargv[4] = {"./candump", "-tz", "vcan0", NULL};
+	int myargc = 3;
+	int can_return = can_main(myargc, myargv);
+	cout << "return from can_main function: " << can_return << endl;
+}
 
 void keyboardEventOccurred (const pcl::visualization::KeyboardEvent &event,
                             void* viewer_void)
@@ -74,7 +119,7 @@ void mouseEventOccurred (const pcl::visualization::MouseEvent &event,
   if (event.getButton () == pcl::visualization::MouseEvent::LeftButton &&
       event.getType () == pcl::visualization::MouseEvent::MouseButtonPress)
   {
-    std::cout << "Left mouse button released at position (" << event.getX () << ", " << event.getY () << ")" << std::endl;
+    //std::cout << "Left mouse button released at position (" << event.getX () << ", " << event.getY () << ")" << std::endl;
 
     char str[512];
     //sprintf (str, "text#%03d", text_id ++);
@@ -106,8 +151,6 @@ void viewerPsycho (pcl::visualization::PCLVisualizer& viewer)
 	viewer.removeShape ("text", 0);
 	user_data++;	
 }
-
-/* ------------------------------------------------------------*/
 
 /* -------------------------------------------------------------
    -------------data_structure_builder--------------------------
@@ -166,11 +209,11 @@ namespace data_structure
 		if (pkthdr->len != pkthdr->caplen)
 	    	printf("Warning! Capture size different than packet size: %ld bytes\n", (long)pkthdr->len);
 
-		// return an empty struct if the packet length is not 1248 bytes
-		// if(pkthdr -> len != 1248){
-		// 	processed_packet = (const struct data_packet){0};
-		// 	return;
-		// }
+		// // return an empty struct if the packet length is not 1248 bytes
+		if(pkthdr -> len != 1248){
+			processed_packet = (const struct data_packet){0};
+			return;
+		}
 				
 		for(int i = 0; i < 42; i++){
 			processed_packet.header[i] = data[i]; // fill in the header
@@ -381,8 +424,9 @@ namespace live
 		
 		//end the program if the viewer was closed by the user
 		if(viewer->wasStopped()){
-			cout << "Viewer Stopped" << endl;
-			exit(0);
+			//cout << "Viewer Stopped" << endl;
+			//exit(0);
+			return;
 		}    
 	}
 
@@ -403,8 +447,9 @@ namespace live
 		
 		//end the program if the viewer was closed by the user
 		if(viewer->wasStopped()){
-			cout << "Viewer Stopped" << endl;
-			exit(0);
+			//cout << "Viewer Stopped" << endl;
+			//exit(0);	//disabled temporarily; making child exit which makes parent to wait for child forever;
+			return;
 		}    
 	}
 }
@@ -492,5 +537,6 @@ namespace offline
 
 }
 
+#endif
 
 

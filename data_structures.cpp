@@ -1,3 +1,5 @@
+#ifndef DATA_STRUCTURES_CPP
+#define DATA_STRUCTURES_CPP
 struct fire_data {
 	uint16_t block_id;
 	double azimuth;
@@ -10,3 +12,4 @@ struct data_packet {
 	fire_data payload[12];
 	uint8_t footer[6];
 };
+#endif

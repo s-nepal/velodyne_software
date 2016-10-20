@@ -1,5 +1,8 @@
+#ifndef VIDEO_CPP
+#define VIDEO_CPP
 #include "opencv2/opencv.hpp"
 volatile unsigned int *pause_sim_kb = 0;
+int exit_thread = false;
 bool play_cloud = true;
 /* ------------------------------------------------------------*/
 
@@ -24,7 +27,7 @@ namespace video
 		VideoWriter video("out.avi",CV_FOURCC('M','J','P','G'),10, Size(frame_width,frame_height),true);
 
 		for(;;){
-
+			if(exit_thread == true){break;}	//return to main thread
 	    	Mat frame;
 	    	cap >> frame; 		// get a new frame from camera
 	  
@@ -54,6 +57,7 @@ namespace video
 
 		for(;;){	
 			while(*pause_sim_kb == 1){}
+			if(exit_thread){break;}
 			if(playVideo)
 	    		cap >> frame; // get a new frame from camera
 	    	if(!frame.data) break;
@@ -71,3 +75,4 @@ namespace video
 
 	}
 }
+#endif

@@ -520,7 +520,8 @@ int can_main(int argc, char **argv)
 				setsockopt(s[i], SOL_CAN_RAW, CAN_RAW_FILTER,
 					   rfilter, numfilter * sizeof(struct can_filter));
 
-			free(rfilter);
+			//free(rfilter);
+			delete [] rfilter;
 
 		} /* if (nptr) */
 

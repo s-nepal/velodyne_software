@@ -14,8 +14,6 @@
 //#include "data_structures.cpp"
 #include "functions.cpp"
 #include <signal.h>
-#include "lib.c"
-#include "candump.cpp"
 #include <fstream>
 
 using namespace std;
@@ -69,8 +67,14 @@ int main(int argc, char *argv[])
 		}
 		else {
 
+			int pid1 = fork();
+			if(pid1 == 0){
+				canData();
+			}
+			else{
 				pcl::visualization::CloudViewer viewer("Data from eth10");
 				std::thread t1(video::playback_video, 1);
+				//std::thread t2(canData);
 				descr = pcap_open_live(eth_port_2, 1248, 1, 1, errbuf);
 				if (descr == NULL) {
 					cout << "pcap_open_live() failed: " << errbuf << endl;
@@ -79,12 +83,17 @@ int main(int argc, char *argv[])
 				viewer.runOnVisualizationThreadOnce (viewerOneOff);
 				viewer.runOnVisualizationThread (viewerPsycho);
 				pcap_loop(descr, 0, live::packetHandler_II, (u_char *) &viewer);
-				int w = wait(NULL);
+				
+				//t2.join();
 				t1.join();
-				while(!viewer.wasStopped()){
-					//do nothing
-				}
+				int w = wait(NULL);
+				int w1 = wait(NULL);
+				// while(!viewer.wasStopped()){
+				// 	//do nothing
+				// }
+
 			}
+		}
 	}
 
 	if(argv[1] == s[1]) // record mode
@@ -95,19 +104,14 @@ int main(int argc, char *argv[])
 			exit(0);
 		}
 		else if(ret == 0){
-			close(1);
+			
+			close(1); //redirecting the ouput
 			int fd = open("canData.txt", O_WRONLY | O_CREAT | O_TRUNC, 0660);
 			if(fd < 0){
 				cout << "cannot open file canData.txt" << endl;
 				exit(0);
 			}
-			/*char *myargs[3];
-			myargs[0] = (const char *) "candump";
-			myargs[1] = (const char *) "can0";
-			myargs[2] = NULL;
-			int exec_return = execvp(myargs[0], myargs);
-			*/
-
+			
 			char *myargv[4] = {"./candump", "-tz", can_port, NULL};
 			int myargc = 3;
 			int can_return = can_main(myargc, myargv);
@@ -115,6 +119,7 @@ int main(int argc, char *argv[])
 
 		}
 		else{
+			signal(SIGINT, compressFiles);
 			thread t1(video::capture_video);
 			thread t2(record::save_pcap, eth_port_1, "Sample_1.pcap");
 			thread t3(record::save_pcap, eth_port_2, "Sample_2.pcap");
@@ -122,7 +127,8 @@ int main(int argc, char *argv[])
 			t2.join();
 			t3.join();
 			t1.join();
-			int w1 = wait(NULL);
+			int w = wait(NULL);
+			compressFunct();
 		}
 		
 	}
@@ -130,6 +136,10 @@ int main(int argc, char *argv[])
 	if(argv[1] == s[2]) // offline mode
 	{
 		cout << "Offline Mode Entered" << endl;
+		if(system("tar -xzvf data.tar.gz") < 0){
+			cout << "error in extracting the data from tar file" << endl;
+			return 0;
+		}
 
 		// Fill 2 giant vectors with the contents of the 2 pcap files
 		pcap_t *descr_I;
@@ -140,26 +150,26 @@ int main(int argc, char *argv[])
 			cout << "pcap_open_offline() failed: " << errbuf << endl;
 			return 1;
 			}
-			vector<struct data_packet> giant_vector_I;
-			pcap_loop(descr_I, 0, offline::pcap_copier_I, (u_char *) &giant_vector_I);
+		vector<struct data_packet> giant_vector_I;
+		pcap_loop(descr_I, 0, offline::pcap_copier_I, (u_char *) &giant_vector_I);
 
-			descr_II = pcap_open_offline("Sample_2.pcap", errbuf);	
-			if (descr_II == NULL) {
-			cout << "pcap_open_offline() failed: " << errbuf << endl;
-			return 1;
-			}
-			vector<struct data_packet> giant_vector_II;	
-			pcap_loop(descr_II, 0, offline::pcap_copier_II, (u_char *) &giant_vector_II);
+		descr_II = pcap_open_offline("Sample_2.pcap", errbuf);	
+		if (descr_II == NULL) {
+		cout << "pcap_open_offline() failed: " << errbuf << endl;
+		return 1;
+		}
+		vector<struct data_packet> giant_vector_II;	
+		pcap_loop(descr_II, 0, offline::pcap_copier_II, (u_char *) &giant_vector_II);
 
-			int pid = fork();
-			if(pid < 0){
-				cout << "fork error" << endl;
-				exit(0);
-			}
+		int pid = fork();
+		if(pid < 0){
+			cout << "fork error in offline mode" << endl;
+			exit(0);
+		}
 
 		else if(pid == 0){
 			pcl::visualization::CloudViewer viewer("Sample_1");
-			//viewer.registerMouseCallback (mouseEventOccurred, (void*) &viewer);
+			viewer.registerMouseCallback (mouseEventOccurred, (void*) &viewer);
 			viewer.registerKeyboardCallback (keyboardEventOccurred, (void*) &viewer);
 			viewer.runOnVisualizationThreadOnce (viewerOneOff);
 			viewer.runOnVisualizationThread (viewerPsycho);
@@ -175,7 +185,7 @@ int main(int argc, char *argv[])
 			 	cout << "fork error" << endl;
 			 	exit(0);
 			 }
-			 else if(pid1 == 0){
+			 else if(pid1 == 0){		//displaying canData on terminal
 			 	
 			 	ifstream canData("canData.txt");
 			 	string line, tempStrTime, strTime;
@@ -200,10 +210,10 @@ int main(int argc, char *argv[])
 			 }
 
 			else{
-
-				thread t1(video::playback_video, 0);
+				signal(SIGINT, deleteFiles);
+				thread t1(video::playback_video, 0);		
 				pcl::visualization::CloudViewer viewer("Sample_2");
-				//viewer.registerMouseCallback (mouseEventOccurred, (void*) &viewer);
+				viewer.registerMouseCallback (mouseEventOccurred, (void*) &viewer);
 				viewer.registerKeyboardCallback (keyboardEventOccurred, (void*) &viewer);
 				viewer.runOnVisualizationThreadOnce (viewerOneOff);
 				viewer.runOnVisualizationThread (viewerPsycho);
@@ -212,7 +222,8 @@ int main(int argc, char *argv[])
 						//do nothing
 					}
 				t1.join();
-				int w = wait(NULL);	
+				int w = wait(NULL);
+				int w1 = wait(NULL);	
 			}
 		}
 	cout << "------------" << endl;
