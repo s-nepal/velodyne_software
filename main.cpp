@@ -1,68 +1,66 @@
 #include <iostream>
 #include <assert.h>
-
 #include <string>
 #include <fstream>
 #include <vector>
 #include <stdlib.h>
 #include <math.h>
-
-
 #include <thread>
 #include <sys/wait.h>
-
-//#include "data_structures.cpp"
-#include "functions.cpp"
 #include <signal.h>
 #include <fstream>
+#include "functions.cpp"
 
 using namespace std;
  
-//Define the data structure builder function
-//Input: 1248 byte long UDP data packet
-//Output: Pointer to the data structure
-
 pcap_t *descr;
  
 int main(int argc, char *argv[]) 
 {	
+	// Define the Ethernet and CAN ports to be used
 	char *eth_port_1 = "eth0";
 	char *eth_port_2 = "eth10";
 	char *can_port = "vcan0";
 
 	pause_sim_kb = (unsigned int *) mmap(NULL, sizeof (*pause_sim_kb), PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, -1, 0);
+
+	// Define the 3 modes input via the command line that the code can function in
 	string s[3] = {"live", "record", "offline"};
+
 	if(argc < 2)
 	{
-		cout << "input the proper option \n\t1)live\n\t2)record\n\t3)offline" << endl;
+		cout << "Input the proper option \n\t1)live\n\t2)record\n\t3)offline" << endl;
 		exit(0);
 	}
+
 	char errbuf[PCAP_ERRBUF_SIZE];
 	
-	if(argv[1] == s[0]) //live mode
+	// Live Mode
+	if(argv[1] == s[0]) 
 	{	
+		cout << "Live Mode Entered" << endl;
+		// Create a fork to allow the data from 2 LiDAR's to be visualized in parallel
 		int pid = fork();
 		if(pid < 0){
 			cout << "fork error" << endl;
 			exit(0);
-		}
+		}	
 		
-		// Create a fork to allow the data from 2 LiDAR's to be visualized in parallel
 		else if(pid == 0){
 
 			pcl::visualization::CloudViewer viewer("Data from eth0");
 			descr = pcap_open_live(eth_port_1, 1248, 1, 1, errbuf);
-				if (descr == NULL) {
-					cout << "pcap_open_live() failed: " << errbuf << endl;
-					return 1;
-				}
+			if (descr == NULL) {
+				cout << "pcap_open_live() failed: " << errbuf << endl;
+				return 1;
+			}
 			viewer.runOnVisualizationThreadOnce (viewerOneOff);
 			viewer.runOnVisualizationThread (viewerPsycho);
 			//loop through the pcap file and extract the packets
 			pcap_loop(descr, 0, live::packetHandler_I, (u_char *) &viewer);
 
 			while(!viewer.wasStopped()){
-					//do nothing
+				//do nothing
 			}
 		}
 		else {
@@ -71,10 +69,9 @@ int main(int argc, char *argv[])
 			if(pid1 == 0){
 				canData();
 			}
-			else{
+			else {
 				pcl::visualization::CloudViewer viewer("Data from eth10");
 				std::thread t1(video::playback_video, 1);
-				//std::thread t2(canData);
 				descr = pcap_open_live(eth_port_2, 1248, 1, 1, errbuf);
 				if (descr == NULL) {
 					cout << "pcap_open_live() failed: " << errbuf << endl;
@@ -84,27 +81,28 @@ int main(int argc, char *argv[])
 				viewer.runOnVisualizationThread (viewerPsycho);
 				pcap_loop(descr, 0, live::packetHandler_II, (u_char *) &viewer);
 				
-				//t2.join();
 				t1.join();
 				int w = wait(NULL);
 				int w1 = wait(NULL);
-				// while(!viewer.wasStopped()){
-				// 	//do nothing
-				// }
+				while(!viewer.wasStopped()){
+					//do nothing
+				}
 
 			}
 		}
 	}
 
-	if(argv[1] == s[1]) // record mode
-	{
+	// Record Mode
+	if(argv[1] == s[1])
+	{	
+		cout << "Record Mode Entered" << endl;
 		int ret = fork();
 		if(ret < 0){
 			cout << "fork error in record mode" << endl;
 			exit(0);
 		}
 		else if(ret == 0){
-			
+			// Create a text file and store CAN data in it
 			close(1); //redirecting the ouput
 			int fd = open("canData.txt", O_WRONLY | O_CREAT | O_TRUNC, 0660);
 			if(fd < 0){
@@ -112,14 +110,16 @@ int main(int argc, char *argv[])
 				exit(0);
 			}
 			
+			// Candump from can_utils is used here
 			char *myargv[4] = {"./candump", "-tz", can_port, NULL};
 			int myargc = 3;
 			int can_return = can_main(myargc, myargv);
 			cout << "return from can_main function: " << can_return << endl;
 
 		}
-		else{
+		else {
 			signal(SIGINT, compressFiles);
+			// Create 3 threads, two for saving UDP data and none for saving video data
 			thread t1(video::capture_video);
 			thread t2(record::save_pcap, eth_port_1, "Sample_1.pcap");
 			thread t3(record::save_pcap, eth_port_2, "Sample_2.pcap");
@@ -133,7 +133,8 @@ int main(int argc, char *argv[])
 		
 	}
 
-	if(argv[1] == s[2]) // offline mode
+	// Offline Mode
+	if(argv[1] == s[2])
 	{
 		cout << "Offline Mode Entered" << endl;
 		if(system("tar -xzvf data.tar.gz") < 0){
@@ -155,8 +156,8 @@ int main(int argc, char *argv[])
 
 		descr_II = pcap_open_offline("Sample_2.pcap", errbuf);	
 		if (descr_II == NULL) {
-		cout << "pcap_open_offline() failed: " << errbuf << endl;
-		return 1;
+			cout << "pcap_open_offline() failed: " << errbuf << endl;
+			return 1;
 		}
 		vector<struct data_packet> giant_vector_II;	
 		pcap_loop(descr_II, 0, offline::pcap_copier_II, (u_char *) &giant_vector_II);
