@@ -51,7 +51,7 @@ const double elev_angles[32] = {-15, 1, -13, 3, -11, 5, -9, 7, -7, 9, -5,
 using namespace std;
 
 int global_ctr = 0;		//to print out the packet number
-const int cycle_num = 100;
+const int cycle_num = 50;
 const int delay_us = 50000;	
 int user_data;
 
@@ -80,7 +80,7 @@ void compressFiles(int signum){
 
 void deleteFiles(int signum){
 	exit_thread = true;
-	cout << "deleting pcap and video files" << endl;
+	cout << "\ndeleting pcap and video files" << endl;
 	if( system("rm Sample_1.pcap Sample_2.pcap out.avi") < 0){
 		cout << "error in deleting files" << endl;	
 	}
@@ -95,6 +95,12 @@ void canData(){
 	int can_return = can_main(myargc, myargv);
 	cout << "return from can_main function: " << can_return << endl;
 }
+
+
+/* -------------------------------------------------------------
+   -------------Functions for user UI---------------------------
+   -------------------------------------------------------------*/
+
 
 void keyboardEventOccurred (const pcl::visualization::KeyboardEvent &event,
                             void* viewer_void)
@@ -111,6 +117,7 @@ void keyboardEventOccurred (const pcl::visualization::KeyboardEvent &event,
     }
   }
 }
+
 
 void mouseEventOccurred (const pcl::visualization::MouseEvent &event,
                          void* viewer_void)
@@ -458,6 +465,7 @@ namespace offline
 {	
 	void packetHandler_I(u_char *userData, const struct pcap_pkthdr* pkthdr, const u_char* packet) 
 	{	
+		while(*pause_sim_kb == 1){}
 		//assign the packaged ethernet data to the struct
 		pcl::visualization::CloudViewer *viewer = (pcl::visualization::CloudViewer *) userData;
 		struct data_packet processed_packet;
@@ -482,6 +490,7 @@ namespace offline
 
 	void packetHandler_II(u_char *userData, const struct pcap_pkthdr* pkthdr, const u_char* packet) 
 	{	
+		while(*pause_sim_kb == 1){}
 		//assign the packaged ethernet data to the struct
 		pcl::visualization::CloudViewer *viewer = (pcl::visualization::CloudViewer *) userData;
 		struct data_packet processed_packet;

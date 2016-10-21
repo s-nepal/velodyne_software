@@ -137,6 +137,7 @@ int main(int argc, char *argv[])
 	if(argv[1] == s[2])
 	{
 		cout << "Offline Mode Entered" << endl;
+		cout << "extracting data from tar file ..." << endl;
 		if(system("tar -xzvf data.tar.gz") < 0){
 			cout << "error in extracting the data from tar file" << endl;
 			return 0;
@@ -155,6 +156,8 @@ int main(int argc, char *argv[])
 				cout << "pcap_open_offline() failed: " << errbuf << endl;
 				return 1;
 			}
+			viewer.registerMouseCallback (mouseEventOccurred, (void*) &viewer);
+			viewer.registerKeyboardCallback (keyboardEventOccurred, (void*) &viewer);
 			viewer.runOnVisualizationThreadOnce (viewerOneOff);
 			viewer.runOnVisualizationThread (viewerPsycho);
 			//loop through the pcap file and extract the packets
