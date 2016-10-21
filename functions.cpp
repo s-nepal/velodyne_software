@@ -51,7 +51,7 @@ const double elev_angles[32] = {-15, 1, -13, 3, -11, 5, -9, 7, -7, 9, -5,
 using namespace std;
 
 int global_ctr = 0;		//to print out the packet number
-const int cycle_num = 50;
+const int cycle_num = 100;
 const int delay_us = 50000;	
 int user_data;
 
@@ -456,83 +456,52 @@ namespace live
 
 namespace offline
 {	
-	//This function copies an entire pcap file into a vector within the code
-	void pcap_copier_I(u_char *ptr_to_vector, const struct pcap_pkthdr* pkthdr, const u_char* packet) 
-	{
-		vector<struct data_packet> *giant_vector = (vector<struct data_packet> *) ptr_to_vector;
-		
+	void packetHandler_I(u_char *userData, const struct pcap_pkthdr* pkthdr, const u_char* packet) 
+	{	
+		//assign the packaged ethernet data to the struct
+		pcl::visualization::CloudViewer *viewer = (pcl::visualization::CloudViewer *) userData;
 		struct data_packet processed_packet;
 		data_structure::data_structure_builder_I(pkthdr, packet, processed_packet);
 
-		giant_vector -> push_back(processed_packet);
+		//insert function here to extract xyz from processed_packet and return the cloud to be visualized below
+		pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud;
+		cloud = data_structure::extract_xyz_I(processed_packet);
+
+		if(global_ctr == cycle_num){ //buffer
+			viewer->showCloud(cloud);
+			usleep(delay_us);
+		}	
+		
+		//end the program if the viewer was closed by the user
+		if(viewer->wasStopped()){
+			//cout << "Viewer Stopped" << endl;
+			//exit(0);
+			return;
+		}    
 	}
 
-	void pcap_copier_II(u_char *ptr_to_vector, const struct pcap_pkthdr* pkthdr, const u_char* packet) 
-	{
-		vector<struct data_packet> *giant_vector = (vector<struct data_packet> *) ptr_to_vector;
-		
+	void packetHandler_II(u_char *userData, const struct pcap_pkthdr* pkthdr, const u_char* packet) 
+	{	
+		//assign the packaged ethernet data to the struct
+		pcl::visualization::CloudViewer *viewer = (pcl::visualization::CloudViewer *) userData;
 		struct data_packet processed_packet;
 		data_structure::data_structure_builder_II(pkthdr, packet, processed_packet);
 
-		giant_vector -> push_back(processed_packet);
-	}
-
-	void pcap_viewer_I(u_char *ptr_to_vector, u_char *ptr_to_viewer)
-	{	
-		pcl::visualization::CloudViewer *viewer = (pcl::visualization::CloudViewer *) ptr_to_viewer;
-
+		//insert function here to extract xyz from processed_packet and return the cloud to be visualized below
 		pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud;
+		cloud = data_structure::extract_xyz_II(processed_packet);
 
-		vector<struct data_packet> *giant_vector = (vector<struct data_packet> *) ptr_to_vector;
-		struct data_packet curr_processed_packet;
+		if(global_ctr == cycle_num){ //buffer
+			viewer->showCloud(cloud);
+			usleep(delay_us);
+		}	
 		
-		for(int i = 0; i < giant_vector -> size(); i++){
-			while(*pause_sim_kb == 1){}
-			curr_processed_packet = giant_vector -> at(i);
-			cloud = data_structure::extract_xyz_I(curr_processed_packet); //The size of cloud progressively increases until global_ctr == cycle_num
-
-			if(play_cloud == false)
-				cout << "Play Cloud is false" << endl;
-			
-			if(global_ctr == cycle_num && play_cloud){
-				viewer->showCloud(cloud);
-				usleep(delay_us);
-			}
-
-			if(viewer->wasStopped()){
-				cout << "Viewer Stopped" << endl;
-				exit(0);
-			}
-		}
-	}
-
-	void pcap_viewer_II(u_char *ptr_to_vector, u_char *ptr_to_viewer)
-	{	
-		pcl::visualization::CloudViewer *viewer = (pcl::visualization::CloudViewer *) ptr_to_viewer;
-
-		pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud;
-
-		vector<struct data_packet> *giant_vector = (vector<struct data_packet> *) ptr_to_vector;
-		struct data_packet curr_processed_packet;
-		
-		for(int i = 0; i < giant_vector -> size(); i++){
-			while(*pause_sim_kb == 1){}
-			curr_processed_packet = giant_vector -> at(i);
-			cloud = data_structure::extract_xyz_II(curr_processed_packet); //The size of cloud progressively increases until global_ctr == cycle_num
-
-			if(play_cloud == false)
-				cout << "Play Cloud is false" << endl;
-			
-			if(global_ctr == cycle_num && play_cloud){
-				viewer->showCloud(cloud);
-				usleep(delay_us);
-			}
-
-			if(viewer->wasStopped()){
-				cout << "Viewer Stopped" << endl;
-				exit(0);
-			}
-		}
+		//end the program if the viewer was closed by the user
+		if(viewer->wasStopped()){
+			//cout << "Viewer Stopped" << endl;
+			//exit(0);	//disabled temporarily; making child exit which makes parent to wait for child forever;
+			return;
+		}    
 	}
 
 }

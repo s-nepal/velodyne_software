@@ -142,26 +142,6 @@ int main(int argc, char *argv[])
 			return 0;
 		}
 
-		// Fill 2 giant vectors with the contents of the 2 pcap files
-		pcap_t *descr_I;
-		pcap_t *descr_II;
-
-		descr_I = pcap_open_offline("Sample_1.pcap", errbuf);
-		if (descr_I == NULL) {
-			cout << "pcap_open_offline() failed: " << errbuf << endl;
-			return 1;
-			}
-		vector<struct data_packet> giant_vector_I;
-		pcap_loop(descr_I, 0, offline::pcap_copier_I, (u_char *) &giant_vector_I);
-
-		descr_II = pcap_open_offline("Sample_2.pcap", errbuf);	
-		if (descr_II == NULL) {
-			cout << "pcap_open_offline() failed: " << errbuf << endl;
-			return 1;
-		}
-		vector<struct data_packet> giant_vector_II;	
-		pcap_loop(descr_II, 0, offline::pcap_copier_II, (u_char *) &giant_vector_II);
-
 		int pid = fork();
 		if(pid < 0){
 			cout << "fork error in offline mode" << endl;
@@ -169,16 +149,20 @@ int main(int argc, char *argv[])
 		}
 
 		else if(pid == 0){
-			pcl::visualization::CloudViewer viewer("Sample_1");
-			viewer.registerMouseCallback (mouseEventOccurred, (void*) &viewer);
-			viewer.registerKeyboardCallback (keyboardEventOccurred, (void*) &viewer);
+			pcl::visualization::CloudViewer viewer("Sample_1.pcap");
+			descr = pcap_open_offline("Sample_1.pcap", errbuf);
+			if (descr == NULL) {
+				cout << "pcap_open_offline() failed: " << errbuf << endl;
+				return 1;
+			}
 			viewer.runOnVisualizationThreadOnce (viewerOneOff);
 			viewer.runOnVisualizationThread (viewerPsycho);
-			offline::pcap_viewer_I((u_char *) &giant_vector_I, (u_char *) &viewer);
+			//loop through the pcap file and extract the packets
+			pcap_loop(descr, 0, offline::packetHandler_I, (u_char *) &viewer);
 
 			while(!viewer.wasStopped()){
-					//do nothing
-				}
+				//do nothing
+			}
 		} 
 		else {
 			 int pid1 = fork();
@@ -213,15 +197,20 @@ int main(int argc, char *argv[])
 			else{
 				signal(SIGINT, deleteFiles);
 				thread t1(video::playback_video, 0);		
-				pcl::visualization::CloudViewer viewer("Sample_2");
+				pcl::visualization::CloudViewer viewer("Sample_2.pcap");
+				descr = pcap_open_offline("Sample_2.pcap", errbuf);
+				if (descr == NULL) {
+					cout << "pcap_open_offline() failed: " << errbuf << endl;
+					return 1;
+				}
 				viewer.registerMouseCallback (mouseEventOccurred, (void*) &viewer);
 				viewer.registerKeyboardCallback (keyboardEventOccurred, (void*) &viewer);
 				viewer.runOnVisualizationThreadOnce (viewerOneOff);
 				viewer.runOnVisualizationThread (viewerPsycho);
-				offline::pcap_viewer_II((u_char *) &giant_vector_II, (u_char *) &viewer);
+				pcap_loop(descr, 0, offline::packetHandler_II, (u_char *) &viewer);
 				while(!viewer.wasStopped()){
 						//do nothing
-					}
+				}
 				t1.join();
 				int w = wait(NULL);
 				int w1 = wait(NULL);	
