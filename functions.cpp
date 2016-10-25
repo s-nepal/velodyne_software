@@ -48,8 +48,7 @@
 using namespace std;
 
 int global_ctr = 0;		//to print out the packet number
-const int cycle_num = 50;
-const int delay_us = 50000;	
+
 int user_data;
 
 /* -------------------------------------------------------------
