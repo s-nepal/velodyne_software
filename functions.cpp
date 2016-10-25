@@ -35,17 +35,15 @@
 #include "lib.c"
 #include "candump.cpp"
 
-#define PI 3.14159265
-// list elevation angles corresponding to each of the 32 laser beams for the HDL-32
-// const double elev_angles[32] = {-30.67, -9.33, -29.33, -8, -28, -6.66,
-//         -26.66, -5.33, -25.33, -4, -24, -2.67, -22.67, -1.33, -21.33,
-//         0, -20, 1.33, -18.67, 2.67, -17.33, 4, -16, 5.33, -14.67, 6.67,
-//         -13.33, 8, -12, 9.33, -10.67, 10.67 };
-// list elevation angles corresponding to each of the 16 laser beams for the VLP-16
-const double elev_angles[32] = {-15, 1, -13, 3, -11, 5, -9, 7, -7, 9, -5,
-								11, -3, 13, -1, 15,-15, 1, -13, 3, -11, 5, -9, 7, -7, 9, -5,
-								11, -3, 13, -1, 15};
+// Includes for libtins
+#include <tins/tins.h>
+#include <cassert>
+#include <iostream>
+#include <string>
+#include <unistd.h>
+#include <cstdio>
 
+#define PI 3.14159265
 
 using namespace std;
 
