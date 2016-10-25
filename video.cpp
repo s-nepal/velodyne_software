@@ -1,6 +1,8 @@
 #ifndef VIDEO_CPP
 #define VIDEO_CPP
 #include "opencv2/opencv.hpp"
+#include "data_structures.h"
+
 volatile unsigned int *pause_sim_kb = 0;
 int exit_thread = false;
 bool play_cloud = true;
