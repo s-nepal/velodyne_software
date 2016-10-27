@@ -385,18 +385,22 @@ namespace live
 		
 		char temp_packet[1206];
 		for(int i =0; i < 1206; i++){
-			temp_packet[i] = packet[ctr];
+			temp_packet[i] = packet[ctr]; // This is where the equavalence between u_char and char happens.
 			ctr++;
 		}
 		
-		// for(int i = 0; i < 100; i++){
-		// 	//cout << temp_packet[i] << endl;
-		// }
+		string pkt_buffer;
 
-		//cout << "****************" << endl;
-
+		for(int i = 0; i < 1206; i++){
+			pkt_buffer.append(1, temp_packet[i]);
+		}
+		// pkt_buffer(temp_packet, 1206);
+		//cout << sizeof(temp_packet) / sizeof(temp_packet[0]);
+		
 		// craft a string from the array of u_char stored in packet
-   		string pkt_buffer(temp_packet, temp_packet + sizeof temp_packet / sizeof temp_packet[0]);
+		// The second argument evaluates to 1206
+   		//pkt_buffer(temp_packet, temp_packet + sizeof temp_packet / sizeof temp_packet[0]);
+
    		//cout << pkt_buffer << endl << "****************" << endl;
 
    		// char experiment[pkt_buffer.size() + 1];
@@ -478,14 +482,14 @@ namespace live
 		//cout << "****************************" << endl;
 
 
-		int ctr = 42;
+		// int ctr = 42;
 		
-		//char *temp_packet = new char[4]; 
-		char temp_packet[1206];
-		for(int i =0; i < 1206; i++){
-			temp_packet[i] = packet[ctr];
-			ctr++;
-		}
+		// //char *temp_packet = new char[4]; 
+		// char temp_packet[1206];
+		// for(int i =0; i < 1206; i++){
+		// 	temp_packet[i] = packet[ctr];
+		// 	ctr++;
+		// }
 		
 		thread t1(buffer_sender, packet);	
 

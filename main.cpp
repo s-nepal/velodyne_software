@@ -19,7 +19,7 @@ int main(int argc, char *argv[])
 {	
 	// Define the Ethernet and CAN ports to be used
 	char *eth_port_1 = "eth0";
-	char *eth_port_2 = "eth10";
+	char *eth_port_2 = "eth1";
 	char *can_port = "vcan0";
 
 	pause_sim_kb = (unsigned int *) mmap(NULL, sizeof (*pause_sim_kb), PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, -1, 0);
