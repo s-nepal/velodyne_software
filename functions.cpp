@@ -26,30 +26,39 @@
 #include <string>
 #include <unistd.h>
 #include <vector>
-#include "video.cpp"
+#include <queue>
+
 #include <cstdlib>
+#include <cstdio>
+#include <cassert>
+#include <iostream>
 
 #include <sys/types.h>
 #include <sys/mman.h>
 
 #include "lib.c"
 #include "candump.cpp"
+#include "video.cpp"
 
 // Includes for libtins
 #include <tins/tins.h>
-#include <cassert>
-#include <iostream>
-#include <string>
-#include <unistd.h>
-#include <cstdio>
 
 #define PI 3.14159265
 
 using namespace std;
 
+const double elev_angles[32] = {-15, 1, -13, 3, -11, 5, -9, 7, -7, 9, -5,
+								11, -3, 13, -1, 15,-15, 1, -13, 3, -11, 5, -9, 7, -7, 9, -5,
+								11, -3, 13, -1, 15};
+
+const int cycle_num = 50; // Number of UDP packets per visualization frame (will change depending on HDL-64 spin rate)
+const int delay_us = 50000;	 // Number of microseconds to wait between frames
+
 int global_ctr = 0;		//to print out the packet number
 
 int user_data;
+
+queue<u_char*> buffer_1;
 
 /* -------------------------------------------------------------
    -------------Functions to compress files into tar------------
@@ -368,6 +377,161 @@ namespace data_structure
 
 }
 
+namespace live
+{	
+	void buffer_sender(const u_char *packet)
+	{
+		int ctr = 42;
+		
+		char temp_packet[1206];
+		for(int i =0; i < 1206; i++){
+			temp_packet[i] = packet[ctr];
+			ctr++;
+		}
+		
+		// for(int i = 0; i < 100; i++){
+		// 	//cout << temp_packet[i] << endl;
+		// }
+
+		//cout << "****************" << endl;
+
+		// craft a string from the array of u_char stored in packet
+   		string pkt_buffer(temp_packet, temp_packet + sizeof temp_packet / sizeof temp_packet[0]);
+   		//cout << pkt_buffer << endl << "****************" << endl;
+
+   		// char experiment[pkt_buffer.size() + 1];
+   		// strcpy(experiment, pkt_buffer.c_str());
+
+   		// cout << "Final" << endl;
+   		// for(int i = 0; i < 4; i++){
+   		// 	//printf("%08X\n", experiment[i]);
+   		// 	cout << experiment[i] << endl;
+   		// 	//printf("%02X\n", temp_packet[i]);
+   		// }
+
+   		// cout << "****************" << endl;
+
+   		//cout << pkt_buffer << endl;
+   		//cout << "****************************" << endl;
+   		
+   		static Tins::PacketSender sender;
+   		static Tins::NetworkInterface iface("eth10");
+
+		//if(buffer_1.size() == 5){
+			//while(!buffer_1.empty()){
+				//Tins::EthernetII pkt = Tins::EthernetII() / Tins::IP("255.255.255.255") / Tins::UDP() /  
+					//Tins::RawPDU((char*)buffer_1.back());
+				Tins::EthernetII pkt = Tins::EthernetII() / Tins::IP("255.255.255.255") / Tins::UDP() /  
+					Tins::RawPDU(pkt_buffer);
+				sender.send(pkt, iface); // send it through eth0
+				buffer_1.pop();
+			//}
+		//}
+	}
+
+	void packetHandler_I(u_char *userData, const struct pcap_pkthdr* pkthdr, const u_char *packet) 
+	{
+		//assign the packaged ethernet data to the struct
+		pcl::visualization::CloudViewer *viewer = (pcl::visualization::CloudViewer *) userData;
+		struct data_packet processed_packet;
+		data_structure::data_structure_builder_I(pkthdr, packet, processed_packet);
+
+		u_char *s = new u_char [1248];
+		for(int i = 0; i < 1248; i++){
+			s[i] = packet[i];
+			//printf("%02X\n", packet[i]);
+		}
+
+		buffer_1.push(s);
+
+		if(buffer_1.size() > 5){
+			buffer_1.pop();
+		}
+
+		u_char *packet_II = new u_char [100];
+		u_char first = 'a'; u_char second = 'b'; u_char third = 'c'; 
+		for(int i = 0; i < 100; i++){
+			if(i == 0)
+				packet_II[i] = first;
+			if(i == 1)
+				packet_II[i] = second;
+			if(i == 2)
+				packet_II[i] = third;
+			if(i == 3)
+				packet_II[i] = third;
+			if(i > 3)
+				packet_II[i] = third;
+		}
+		
+		// for(int i = 0; i < 100; i++){
+		// 	cout << packet_II[i] << endl;
+		// }
+
+		// cout << "****************" << endl;
+
+		// int ctr = 42;
+		// for(int i = 0; i < 1206; i++){
+		// 	//printf("%08X\n", packet[ctr]);
+		// 	ctr++;
+		// }
+
+		//cout << "****************************" << endl;
+
+
+		int ctr = 42;
+		
+		//char *temp_packet = new char[4]; 
+		char temp_packet[1206];
+		for(int i =0; i < 1206; i++){
+			temp_packet[i] = packet[ctr];
+			ctr++;
+		}
+		
+		thread t1(buffer_sender, packet);	
+
+		//insert function here to extract xyz from processed_packet and return the cloud to be visualized below
+		pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud;
+		cloud = data_structure::extract_xyz_I(processed_packet);
+
+		if(global_ctr == cycle_num){ //buffer
+			viewer->showCloud(cloud);
+		}	
+		
+		//end the program if the viewer was closed by the user
+		if(viewer->wasStopped()){
+			//cout << "Viewer Stopped" << endl;
+			//exit(0);
+			return;
+		}
+
+		t1.join();  
+	}
+
+	void packetHandler_II(u_char *userData, const struct pcap_pkthdr* pkthdr, const u_char* packet) 
+	{
+		//assign the packaged ethernet data to the struct
+		pcl::visualization::CloudViewer *viewer = (pcl::visualization::CloudViewer *) userData;
+		struct data_packet processed_packet;
+		data_structure::data_structure_builder_II(pkthdr, packet, processed_packet);
+
+		//insert function here to extract xyz from processed_packet and return the cloud to be visualized below
+		pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud;
+		cloud = data_structure::extract_xyz_II(processed_packet);
+
+		if(global_ctr == cycle_num){ //buffer
+			viewer->showCloud(cloud);
+		}	
+		
+		//end the program if the viewer was closed by the user
+		if(viewer->wasStopped()){
+			//cout << "Viewer Stopped" << endl;
+			//exit(0);	//disabled temporarily; making child exit which makes parent to wait for child forever;
+			return;
+		}    
+	}
+}
+
+
 /* -------------------------------------------------------------
    -------Saving the data into pcap file------------------------
    open capture file for offline processing can be done by
@@ -405,55 +569,6 @@ namespace record
 		pcap_dump_close(pd);
 		pcap_close(descr1);
 
-	}
-}
-
-namespace live
-{
-	void packetHandler_I(u_char *userData, const struct pcap_pkthdr* pkthdr, const u_char* packet) 
-	{
-		//assign the packaged ethernet data to the struct
-		pcl::visualization::CloudViewer *viewer = (pcl::visualization::CloudViewer *) userData;
-		struct data_packet processed_packet;
-		data_structure::data_structure_builder_I(pkthdr, packet, processed_packet);
-
-		//insert function here to extract xyz from processed_packet and return the cloud to be visualized below
-		pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud;
-		cloud = data_structure::extract_xyz_I(processed_packet);
-
-		if(global_ctr == cycle_num){ //buffer
-			viewer->showCloud(cloud);
-		}	
-		
-		//end the program if the viewer was closed by the user
-		if(viewer->wasStopped()){
-			//cout << "Viewer Stopped" << endl;
-			//exit(0);
-			return;
-		}    
-	}
-
-	void packetHandler_II(u_char *userData, const struct pcap_pkthdr* pkthdr, const u_char* packet) 
-	{
-		//assign the packaged ethernet data to the struct
-		pcl::visualization::CloudViewer *viewer = (pcl::visualization::CloudViewer *) userData;
-		struct data_packet processed_packet;
-		data_structure::data_structure_builder_II(pkthdr, packet, processed_packet);
-
-		//insert function here to extract xyz from processed_packet and return the cloud to be visualized below
-		pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud;
-		cloud = data_structure::extract_xyz_II(processed_packet);
-
-		if(global_ctr == cycle_num){ //buffer
-			viewer->showCloud(cloud);
-		}	
-		
-		//end the program if the viewer was closed by the user
-		if(viewer->wasStopped()){
-			//cout << "Viewer Stopped" << endl;
-			//exit(0);	//disabled temporarily; making child exit which makes parent to wait for child forever;
-			return;
-		}    
 	}
 }
 

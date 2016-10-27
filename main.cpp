@@ -12,7 +12,7 @@
 #include "functions.cpp"
 
 using namespace std;
- 
+
 pcap_t *descr;
  
 int main(int argc, char *argv[]) 
