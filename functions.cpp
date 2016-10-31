@@ -184,6 +184,7 @@ namespace data_structure
 		for(int i = 0; i < 42; i++){
 			processed_packet.header[i] = data[i]; // fill in the header
 		}
+		//cout << "first element from eth0: " << (unsigned int)data[0] << endl;
 
 		//cout << endl;
 		for(int i = 0; i < 6; i++){
@@ -226,12 +227,30 @@ namespace data_structure
 			processed_packet = (const struct data_packet){0};
 			return;
 		}
-				
+
+		// Filter needed to weed out random points on the visualization screen
+		// Assumption: The first byte of all valid point clouds is 0xFF.
+		if(data[42] != 0xFF){ 
+			processed_packet = (const struct data_packet){0};
+			return;
+		}
+
+		//cout << "********************************" << endl;
+		int rt = 42;
+		//cout << "Data from Eth10" << endl;
+		for(int i = 0; i < 1206; i++){
+			//cout << (unsigned int)data[rt] << endl;
+			//printf("%02X\n", data[rt]);
+			rt++;
+		}
+
+		//cout << "********************************" << endl;
+		//while(1);
+						
 		for(int i = 0; i < 42; i++){
 			processed_packet.header[i] = data[i]; // fill in the header
 		}
 
-		//cout << endl;
 		for(int i = 0; i < 6; i++){
 			processed_packet.footer[i] = data[i + 1242]; // fill in the footer
 		}
@@ -383,17 +402,31 @@ namespace live
 	{
 		int ctr = 42;
 		
-		char temp_packet[1206];
+		u_char temp_packet[1206];
+		//cout << "Data in temp_packet" << endl;
 		for(int i =0; i < 1206; i++){
 			temp_packet[i] = packet[ctr]; // This is where the equavalence between u_char and char happens.
+			//cout << (unsigned int)temp_packet[i] << endl;
 			ctr++;
 		}
 		
+		//cout << endl << endl << "************************************" << endl;
+
 		string pkt_buffer;
 
 		for(int i = 0; i < 1206; i++){
 			pkt_buffer.append(1, temp_packet[i]);
 		}
+
+		//cout << "Data in pkt_buffer" << endl;
+		for(int i = 0; i < 1206; i++){
+			//cout << (unsigned int)pkt_buffer[i] << endl;
+		}
+
+		//cout << endl << endl << "************************************" << endl;
+
+		//while(1);
+		
 		// pkt_buffer(temp_packet, 1206);
 		//cout << sizeof(temp_packet) / sizeof(temp_packet[0]);
 		
@@ -428,7 +461,7 @@ namespace live
 				Tins::EthernetII pkt = Tins::EthernetII() / Tins::IP("255.255.255.255") / Tins::UDP() /  
 					Tins::RawPDU(pkt_buffer);
 				sender.send(pkt, iface); // send it through eth0
-				buffer_1.pop();
+				//buffer_1.pop();
 			//}
 		//}
 	}
@@ -440,32 +473,32 @@ namespace live
 		struct data_packet processed_packet;
 		data_structure::data_structure_builder_I(pkthdr, packet, processed_packet);
 
-		u_char *s = new u_char [1248];
-		for(int i = 0; i < 1248; i++){
-			s[i] = packet[i];
-			//printf("%02X\n", packet[i]);
-		}
+		// u_char *s = new u_char [1248];
+		// for(int i = 0; i < 1248; i++){
+		// 	s[i] = packet[i];
+		// 	//printf("%02X\n", packet[i]);
+		// }
 
-		buffer_1.push(s);
+		// buffer_1.push(s);
 
-		if(buffer_1.size() > 5){
-			buffer_1.pop();
-		}
+		// if(buffer_1.size() > 5){
+		// 	buffer_1.pop();
+		// }
 
-		u_char *packet_II = new u_char [100];
-		u_char first = 'a'; u_char second = 'b'; u_char third = 'c'; 
-		for(int i = 0; i < 100; i++){
-			if(i == 0)
-				packet_II[i] = first;
-			if(i == 1)
-				packet_II[i] = second;
-			if(i == 2)
-				packet_II[i] = third;
-			if(i == 3)
-				packet_II[i] = third;
-			if(i > 3)
-				packet_II[i] = third;
-		}
+		// u_char *packet_II = new u_char [100];
+		// u_char first = 'a'; u_char second = 'b'; u_char third = 'c'; 
+		// for(int i = 0; i < 100; i++){
+		// 	if(i == 0)
+		// 		packet_II[i] = first;
+		// 	if(i == 1)
+		// 		packet_II[i] = second;
+		// 	if(i == 2)
+		// 		packet_II[i] = third;
+		// 	if(i == 3)
+		// 		packet_II[i] = third;
+		// 	if(i > 3)
+		// 		packet_II[i] = third;
+		// }
 		
 		// for(int i = 0; i < 100; i++){
 		// 	cout << packet_II[i] << endl;
