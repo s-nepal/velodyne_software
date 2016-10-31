@@ -16,7 +16,7 @@ main:
 	$(CFLAGS) $(LDFLAGS) \
 	-rdynamic -lboost_system -lboost_filesystem -lboost_thread -lboost_date_time -lboost_iostreams \
 	-lboost_serialization -lboost_chrono -lpthread -lpcl_common -Wl,-Bstatic -lflann_cpp_s -Wl,-Bdynamic \
-	-lpcl_kdtree -lpcl_octree -lpcl_search -lqhull -lpcl_surface -lpcl_sample_consensus -lOpenNI -lOpenNI2 \
+	-lpcl_kdtree -lpcl_octree -lpcl_search -lqhull -lpcl_surface -lpcl_sample_consensus -lOpenNI -lOpenNI2 -ltins \
 	-lpcl_io -lpcl_filters -lpcl_features -lpcl_keypoints -lpcl_registration -lpcl_segmentation -lpcl_recognition \
 	-lpcl_visualization -lpcl_people -lpcl_outofcore -lpcl_tracking -lpcl_apps -lboost_system -lboost_filesystem \
 	-lboost_thread -lboost_date_time -lboost_iostreams -lboost_serialization -lboost_chrono -lpthread -lqhull \
