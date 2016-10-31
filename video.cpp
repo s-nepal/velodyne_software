@@ -2,7 +2,7 @@
 #define VIDEO_CPP
 #include "opencv2/opencv.hpp"
 #include "data_structures.h"
-#include "defines.h"
+//#include "defines.h"
 
 volatile unsigned int *pause_sim_kb = 0;
 int exit_thread = false;
