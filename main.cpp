@@ -12,15 +12,16 @@
 #include "functions.cpp"
 
 using namespace std;
-
-pcap_t *descr;
  
 int main(int argc, char *argv[]) 
 {	
+	pcap_t *descr;
 	// Define the Ethernet and CAN ports to be used
-	char *eth_port_1 = "eth0";
-	char *eth_port_2 = "eth10";
-	char *can_port = "vcan0";
+	// char *eth_port_1 = "eth0";
+	// char *eth_port_2 = "eth1";
+	// char *eth_port_buffer_1 = "eth10";
+	// char *eth_port_buffer_2 = "eth10"; // fow now only, later change to eth11
+	// char *can_port = "vcan0";
 
 	pause_sim_kb = (unsigned int *) mmap(NULL, sizeof (*pause_sim_kb), PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, -1, 0);
 
@@ -47,8 +48,9 @@ int main(int argc, char *argv[])
 		}	
 		
 		else if(pid == 0){
-
+			// Fork for visualizing and buffering data from the first lidar
 			pcl::visualization::CloudViewer viewer("Data from eth0");
+			thread t1(record::save_pcap, eth_port_buffer_1, "Sample_1.pcap");
 			descr = pcap_open_live(eth_port_1, 1248, 1, 1, errbuf);
 			if (descr == NULL) {
 				cout << "pcap_open_live() failed: " << errbuf << endl;
@@ -58,7 +60,7 @@ int main(int argc, char *argv[])
 			viewer.runOnVisualizationThread (viewerPsycho);
 			//loop through the pcap file and extract the packets
 			pcap_loop(descr, 0, live::packetHandler_I, (u_char *) &viewer);
-
+			t1.join();
 			while(!viewer.wasStopped()){
 				//do nothing
 			}
@@ -70,8 +72,10 @@ int main(int argc, char *argv[])
 				canData();
 			}
 			else {
-				pcl::visualization::CloudViewer viewer("Data from eth10");
-				std::thread t1(video::playback_video, 1);
+				// Fork for visualizing and buffering data from the second lidar
+				pcl::visualization::CloudViewer viewer("Data from eth1");
+				thread t1(record::save_pcap, eth_port_buffer_2, "Sample_2.pcap");
+				thread t2(video::playback_video, 1);
 				descr = pcap_open_live(eth_port_2, 1248, 1, 1, errbuf);
 				if (descr == NULL) {
 					cout << "pcap_open_live() failed: " << errbuf << endl;
@@ -79,8 +83,10 @@ int main(int argc, char *argv[])
 				}
 				viewer.runOnVisualizationThreadOnce (viewerOneOff);
 				viewer.runOnVisualizationThread (viewerPsycho);
+
 				pcap_loop(descr, 0, live::packetHandler_II, (u_char *) &viewer);
-				
+
+				t2.join();
 				t1.join();
 				int w = wait(NULL);
 				int w1 = wait(NULL);
@@ -128,7 +134,9 @@ int main(int argc, char *argv[])
 			t3.join();
 			t1.join();
 			int w = wait(NULL);
-			compressFunct();
+
+			// Compresses recorded files into a tar file
+			//compressFunct();
 		}
 		
 	}
@@ -138,10 +146,12 @@ int main(int argc, char *argv[])
 	{
 		cout << "Offline Mode Entered" << endl;
 		cout << "extracting data from tar file ..." << endl;
-		if(system("tar -xzvf data.tar.gz") < 0){
-			cout << "error in extracting the data from tar file" << endl;
-			return 0;
-		}
+
+		// Extracts recorded files from the compressed folder
+		// if(system("tar -xzvf data.tar.gz") < 0){
+		// 	cout << "error in extracting the data from tar file" << endl;
+		// 	return 0;
+		// }
 
 		int pid = fork();
 		if(pid < 0){
@@ -198,7 +208,7 @@ int main(int argc, char *argv[])
 			 }
 
 			else{
-				signal(SIGINT, deleteFiles);
+				//signal(SIGINT, deleteFiles); //used to delete extracted files
 				thread t1(video::playback_video, 0);		
 				pcl::visualization::CloudViewer viewer("Sample_2.pcap");
 				descr = pcap_open_offline("Sample_2.pcap", errbuf);

@@ -14,8 +14,6 @@
 #include <pcl/range_image/range_image.h>
 #include <pcl/visualization/range_image_visualizer.h>
 
-
-
 #include <pcap.h>
 #include <net/ethernet.h>
 #include <netinet/ip.h>
@@ -43,22 +41,25 @@
 // Includes for libtins
 #include <tins/tins.h>
 
-#define PI 3.14159265
+//#define PI 3.14159265
 
 using namespace std;
 
-const double elev_angles[32] = {-15, 1, -13, 3, -11, 5, -9, 7, -7, 9, -5,
-								11, -3, 13, -1, 15,-15, 1, -13, 3, -11, 5, -9, 7, -7, 9, -5,
-								11, -3, 13, -1, 15};
+// const double elev_angles[32] = {-15, 1, -13, 3, -11, 5, -9, 7, -7, 9, -5,
+// 								11, -3, 13, -1, 15,-15, 1, -13, 3, -11, 5, -9, 7, -7, 9, -5,
+// 								11, -3, 13, -1, 15};
 
-const int cycle_num = 50; // Number of UDP packets per visualization frame (will change depending on HDL-64 spin rate)
-const int delay_us = 50000;	 // Number of microseconds to wait between frames
+// const int cycle_num_1 = 50; // Number of UDP packets per visualization frame (will change depending on HDL-64 spin rate)
+// const int delay_us_1 = 50000;	 // Number of microseconds to wait between frames
+// const int cycle_num_2 = 50; 
+// const int delay_us_2 = 50000;
 
 int global_ctr = 0;		//to print out the packet number
 
 int user_data;
 
-queue<u_char*> buffer_1;
+queue<string> buffer_1;
+queue<string> buffer_2;
 
 /* -------------------------------------------------------------
    -------------Functions to compress files into tar------------
@@ -183,10 +184,10 @@ namespace data_structure
 
 		// Filter needed to weed out random points on the visualization screen
 		// Assumption: The first byte of all valid point clouds is 0xFF.
-		if(data[42] != 0xFF){ 
-			processed_packet = (const struct data_packet){0};
-			return;
-		}
+		// if(data[42] != 0xFF){ 
+		// 	processed_packet = (const struct data_packet){0};
+		// 	return;
+		// }
 				
 		for(int i = 0; i < 42; i++){
 			processed_packet.header[i] = data[i]; // fill in the header
@@ -237,10 +238,10 @@ namespace data_structure
 
 		// Filter needed to weed out random points on the visualization screen
 		// Assumption: The first byte of all valid point clouds is 0xFF.
-		if(data[42] != 0xFF){ 
-			processed_packet = (const struct data_packet){0};
-			return;
-		}
+		// if(data[42] != 0xFF){ 
+		// 	processed_packet = (const struct data_packet){0};
+		// 	return;
+		// }
 						
 		for(int i = 0; i < 42; i++){
 			processed_packet.header[i] = data[i]; // fill in the header
@@ -278,7 +279,7 @@ namespace data_structure
 
 	void colorize_point_cloud(double curr_intensity, pcl::PointXYZRGBA *sample)
 	{	
-		double intensity_range = 63; //any intensity value above 63 will be red
+		double intensity_range = 127; //any intensity value above 63 will be red
 		double wavelength;
 
 		if(curr_intensity <= 63)
@@ -286,7 +287,7 @@ namespace data_structure
 		else
 			wavelength = 780;
 
-		if((wavelength >= 380) && (wavelength<440)){
+		if((wavelength >= 380) && (wavelength < 440)){
 			sample->r = (-(wavelength - 440) / (440 - 380))*255;
 			sample->g = 0;
 			sample->b = 255;
@@ -349,7 +350,7 @@ namespace data_structure
 			}
 		}
 
-		if(global_ctr > cycle_num){
+		if(global_ctr > cycle_num_1){
 			cloud -> points.clear();
 			global_ctr = 0;
 			//usleep(400000); //0.1s delay
@@ -379,7 +380,7 @@ namespace data_structure
 			}
 		}
 
-		if(global_ctr > cycle_num){
+		if(global_ctr > cycle_num_2){
 			cloud -> points.clear();
 			global_ctr = 0;
 			//usleep(400000); //0.1s delay
@@ -390,93 +391,6 @@ namespace data_structure
 	}
 
 }
-
-namespace live
-{	
-	void buffer_sender(const u_char *packet)
-	{
-		int ctr = 42;
-		
-		u_char temp_packet[1206];
-		//cout << "Data in temp_packet" << endl;
-		for(int i =0; i < 1206; i++){
-			temp_packet[i] = packet[ctr]; // This is where the equavalence between u_char and char happens.
-			ctr++;
-		}
-		
-		string pkt_buffer;
-
-		for(int i = 0; i < 1206; i++){
-			pkt_buffer.append(1, temp_packet[i]);
-		}
-
-
-   		static Tins::PacketSender sender;
-   		static Tins::NetworkInterface iface("eth10");
-
-		//if(buffer_1.size() == 5){
-			//while(!buffer_1.empty()){
-				//Tins::EthernetII pkt = Tins::EthernetII() / Tins::IP("255.255.255.255") / Tins::UDP() /  
-					//Tins::RawPDU((char*)buffer_1.back());
-				Tins::EthernetII pkt = Tins::EthernetII() / Tins::IP("255.255.255.255") / Tins::UDP() /  
-					Tins::RawPDU(pkt_buffer);
-				sender.send(pkt, iface); // send it through eth0
-				//buffer_1.pop();
-			//}
-		//}
-	}
-
-	void packetHandler_I(u_char *userData, const struct pcap_pkthdr* pkthdr, const u_char *packet) 
-	{
-		//assign the packaged ethernet data to the struct
-		pcl::visualization::CloudViewer *viewer = (pcl::visualization::CloudViewer *) userData;
-		struct data_packet processed_packet;
-		data_structure::data_structure_builder_I(pkthdr, packet, processed_packet);
-		
-		thread t1(buffer_sender, packet);	
-
-		//insert function here to extract xyz from processed_packet and return the cloud to be visualized below
-		pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud;
-		cloud = data_structure::extract_xyz_I(processed_packet);
-
-		if(global_ctr == cycle_num){ //buffer
-			viewer->showCloud(cloud);
-		}	
-		
-		//end the program if the viewer was closed by the user
-		if(viewer->wasStopped()){
-			//cout << "Viewer Stopped" << endl;
-			//exit(0);
-			return;
-		}
-
-		t1.join();  
-	}
-
-	void packetHandler_II(u_char *userData, const struct pcap_pkthdr* pkthdr, const u_char* packet) 
-	{
-		//assign the packaged ethernet data to the struct
-		pcl::visualization::CloudViewer *viewer = (pcl::visualization::CloudViewer *) userData;
-		struct data_packet processed_packet;
-		data_structure::data_structure_builder_II(pkthdr, packet, processed_packet);
-
-		//insert function here to extract xyz from processed_packet and return the cloud to be visualized below
-		pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud;
-		cloud = data_structure::extract_xyz_II(processed_packet);
-
-		if(global_ctr == cycle_num){ //buffer
-			viewer->showCloud(cloud);
-		}	
-		
-		//end the program if the viewer was closed by the user
-		if(viewer->wasStopped()){
-			//cout << "Viewer Stopped" << endl;
-			//exit(0);	//disabled temporarily; making child exit which makes parent to wait for child forever;
-			return;
-		}    
-	}
-}
-
 
 /* -------------------------------------------------------------
    -------Saving the data into pcap file------------------------
@@ -500,7 +414,7 @@ namespace record
 		cout << "Saving the data into " << file_name << endl;
 		
 		if((pd = pcap_dump_open(descr1, file_name)) == NULL){
-			cout << "error in opening file Sample_2.pcap" << endl;
+			cout << "error in opening file" << endl;
 			exit(0);
 		}
 		
@@ -518,6 +432,155 @@ namespace record
 	}
 }
 
+namespace live
+{	
+	void buffer_sender_I(const u_char *packet, char *eth_buffer)
+	{	
+		int ctr = 42;
+		
+		// If the first byte of the payload is not 0xFF then do not proceed
+		if(packet[42] != 0xFF){
+			return;
+		}
+
+		u_char temp_packet[1206];
+		//cout << "Data in temp_packet" << endl;
+		for(int i =0; i < 1206; i++){
+			temp_packet[i] = packet[ctr]; // This is where the equavalence between u_char and char happens.
+			ctr++;
+		}
+		
+		string pkt_buffer;
+
+		for(int i = 0; i < 1206; i++){
+			pkt_buffer.append(1, temp_packet[i]);
+		}
+
+		// definitions needed for UDP packet composition and transmission
+   		static Tins::PacketSender sender;
+   		static Tins::NetworkInterface iface(eth_buffer);
+
+   		//build the buffer
+   		buffer_1.push(pkt_buffer);
+
+   		//once the buffer is full, do the following
+   		if(buffer_1.size() > num_frame_buffer_1 * cycle_num_1){
+   			//cout << "Conditional Entered" << endl;
+   			buffer_1.pop();
+
+   			// The following should happen only if a trigger is received
+   			while(!buffer_1.empty()){
+	   			Tins::EthernetII pkt = Tins::EthernetII() / Tins::IP("255.255.255.255") / Tins::UDP() /  
+						Tins::RawPDU(buffer_1.front());
+				sender.send(pkt, iface);
+				//usleep(600);
+				buffer_1.pop();				
+			}		
+   		}
+	}
+
+	void buffer_sender_II(const u_char *packet, char *eth_buffer)
+	{	
+		int ctr = 42;
+		
+		// If the first byte of the payload is not 0xFF then do not proceed
+		if(packet[42] != 0xFF){
+			return;
+		}
+
+		u_char temp_packet[1206];
+		//cout << "Data in temp_packet" << endl;
+		for(int i =0; i < 1206; i++){
+			temp_packet[i] = packet[ctr]; // This is where the equavalence between u_char and char happens.
+			ctr++;
+		}
+		
+		string pkt_buffer;
+
+		for(int i = 0; i < 1206; i++){
+			pkt_buffer.append(1, temp_packet[i]);
+		}
+
+		// definitions needed for UDP packet composition and transmission
+   		static Tins::PacketSender sender;
+   		static Tins::NetworkInterface iface(eth_buffer);
+
+   		//build the buffer
+   		buffer_2.push(pkt_buffer);
+
+   		//once the buffer is full, do the following
+   		if(buffer_2.size() > num_frame_buffer_2 * cycle_num_2){
+   			//cout << "Conditional Entered" << endl;
+   			buffer_2.pop();
+
+   			// The following should happen only if a trigger is received
+   			while(!buffer_2.empty()){
+	   			Tins::EthernetII pkt = Tins::EthernetII() / Tins::IP("255.255.255.255") / Tins::UDP() /  
+						Tins::RawPDU(buffer_2.front());
+				sender.send(pkt, iface);
+				//usleep(600);
+				buffer_2.pop();				
+			}		
+   		}
+	}
+
+	void packetHandler_I(u_char *userData, const struct pcap_pkthdr* pkthdr, const u_char *packet) 
+	{	
+		//char *eth_buffer = "eth10";
+		pcl::visualization::CloudViewer *viewer = (pcl::visualization::CloudViewer *) userData;
+		struct data_packet processed_packet;
+		data_structure::data_structure_builder_I(pkthdr, packet, processed_packet);
+		
+		thread t1(buffer_sender_I, packet, eth_port_buffer_1);	
+		
+		//insert function here to extract xyz from processed_packet and return the cloud to be visualized below
+		pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud;
+		cloud = data_structure::extract_xyz_I(processed_packet);
+
+		if(global_ctr == cycle_num_1){ //buffer
+			viewer->showCloud(cloud);
+		}	
+		
+		//end the program if the viewer was closed by the user
+		if(viewer->wasStopped()){
+			//cout << "Viewer Stopped" << endl;
+			//exit(0);
+			return;
+		}
+
+		t1.join();  
+	}
+
+	void packetHandler_II(u_char *userData, const struct pcap_pkthdr* pkthdr, const u_char* packet) 
+	{	
+		//char *eth_buffer = "eth10";
+		//assign the packaged ethernet data to the struct
+		pcl::visualization::CloudViewer *viewer = (pcl::visualization::CloudViewer *) userData;
+		struct data_packet processed_packet;
+		data_structure::data_structure_builder_II(pkthdr, packet, processed_packet);
+
+		thread t1(buffer_sender_II, packet, eth_port_buffer_2);
+
+		//insert function here to extract xyz from processed_packet and return the cloud to be visualized below
+		pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud;
+		cloud = data_structure::extract_xyz_II(processed_packet);
+
+		if(global_ctr == cycle_num_2){ //buffer
+			viewer->showCloud(cloud);
+		}	
+		
+		//end the program if the viewer was closed by the user
+		if(viewer->wasStopped()){
+			//cout << "Viewer Stopped" << endl;
+			//exit(0);	//disabled temporarily; making child exit which makes parent to wait for child forever;
+			return;
+		} 
+
+		t1.join();   
+	}
+}
+
+
 namespace offline
 {	
 	void packetHandler_I(u_char *userData, const struct pcap_pkthdr* pkthdr, const u_char* packet) 
@@ -532,9 +595,9 @@ namespace offline
 		pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud;
 		cloud = data_structure::extract_xyz_I(processed_packet);
 
-		if(global_ctr == cycle_num){ //buffer
+		if(global_ctr == cycle_num_1){ //buffer
 			viewer->showCloud(cloud);
-			usleep(delay_us);
+			usleep(delay_us_1);
 		}	
 		
 		//end the program if the viewer was closed by the user
@@ -557,9 +620,9 @@ namespace offline
 		pcl::PointCloud<pcl::PointXYZRGBA>::Ptr cloud;
 		cloud = data_structure::extract_xyz_II(processed_packet);
 
-		if(global_ctr == cycle_num){ //buffer
+		if(global_ctr == cycle_num_2){ //buffer
 			viewer->showCloud(cloud);
-			usleep(delay_us);
+			usleep(delay_us_2);
 		}	
 		
 		//end the program if the viewer was closed by the user
